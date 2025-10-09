@@ -52,37 +52,52 @@ const player = {
 // ---- Mario animations from spritesheet (96x48 = 6x3 grid of 16x16) ----
 const ANIMS = createMarioAnimationsFromSheet();
 
+// ---------- helpers: scale-aware drawing so the game FILLS VERTICALLY ----------
+/**
+ * Compute logical → physical scale so that the full map height fills screen height.
+ * Our logical height is the tile layer height (in tiles) * TILE (pixels per tile).
+ */
+function getScaleToFillVertically() {
+  const view = Screen.getMode();
+  const logicalH = (fg?.height || level.height || 18) * TILE; // e.g., 18 * 8 = 144
+  return view.height / logicalH;
+}
+
 // ---- Main loop ----
 Screen.display(() => {
+  // Recompute scale each frame (handles mode changes)
+  const SCALE = getScaleToFillVertically();
+
   // Input
-  const pad = Inp.poll(); // reads Pads.get + helper
+  const pad = Inp.poll();
   player.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
   if (pad.jumpPressed && player.grounded) player.vy = JUMP_V;
   player.ducking = (pad.down && player.grounded && player.size === "big");
 
-  // Physics
+  // Physics (in logical units)
   player.vy += GRAV;
-  Phys.step(player, collGrid, TILE); // resolves tile collisions, sets grounded
+  Phys.step(player, collGrid, TILE);
 
-  // Camera: keep Mario ~centered horizontally
+  // Camera in logical units; center using *logical* viewport width
   const view = Screen.getMode();
-  camX = Math.max(0, Math.floor(player.x - (view.width >> 1)));
+  const viewW_logical = view.width / SCALE;
+  camX = Math.max(0, Math.floor(player.x - (viewW_logical * 0.5)));
   camY = 0;
 
-  // Draw (auto-clear on Screen.display)
-  // (Optional) background layer first
-  if (bg) Tiled.drawLayerData(bg, bgData, tileset, ts, camX, camY);
-  // Foreground (solid tiles)
-  Tiled.drawLayerData(fg, fgData, tileset, ts, camX, camY);
+  // Draw background then foreground (scaled)
+  if (bg) Tiled.drawLayerData(bg, bgData, tileset, ts, camX, camY, SCALE);
+  Tiled.drawLayerData(fg, fgData, tileset, ts, camX, camY, SCALE);
 
-  // ---- Animation selection (small/big walk, etc.) ----
+  // ---- Animation selection ----
   const { name, flipH } = handleAnimations(player, ANIMS);
-
-  // Feet-align sprite to collision box
   const currentAnim = ANIMS[name];
-  const rect = currentAnim.currentRect; // exposed by SpriteSheetAnimation
+  const rect = currentAnim.currentRect;
+
+  // Feet-align sprite to collision box in logical units
   const drawX = Math.fround(player.x - camX + (player.w - rect.w) * 0.5);
   const drawY = Math.fround(player.y - camY - (rect.h - player.h));
 
-  currentAnim.draw(drawX, drawY, flipH);
+  // Draw scaled to fill vertical screen
+//   drawAnimScaled(currentAnim, drawX, drawY, flipH, SCALE);
+  currentAnim.draw(drawX, drawY, flipH, SCALE);
 });
