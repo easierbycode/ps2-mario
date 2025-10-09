@@ -6,17 +6,12 @@ Screen.setVSync(true);
 import * as Tiled from "lib/tiled.js";
 import * as Phys  from "lib/physics.js";
 import * as Inp   from "lib/input.js";
-import { ensurePowerOfTwo } from "lib/image_utils.js";
 import { handleAnimations } from "lib/mario_anim_logic.js";
 import { createMarioAnimationsFromSheet } from "./lib/mario_animations.js";
 
 // ---- Load assets ----
-// Load the original image, set its filter, then ensure it's power-of-two.
-// The filter must also be set on the final texture.
-const originalTileset = new Image("assets/tiles/smb_tiles.png");
-originalTileset.filter = NEAREST; // Configure the source image
-const tileset = ensurePowerOfTwo(originalTileset);
-tileset.filter = NEAREST; // Configure the final texture
+const tileset = new Image("assets/tiles/smb_tiles.png");
+tileset.filter = NEAREST; // crisp pixel art
 
 // --- Load map & tileset based on your JSON ---
 const level = Tiled.loadJSON("assets/tiles/level1.json");
