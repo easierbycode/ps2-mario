@@ -6,7 +6,6 @@ Screen.setVSync(true);
 import * as Tiled from "lib/tiled.js";
 import * as Phys  from "lib/physics.js";
 import * as Inp   from "lib/input.js";
-import SpriteSheetAnimation from "lib/spritesheet_animation.js";
 import { handleAnimations } from "lib/mario_anim_logic.js";
 import { createMarioAnimationsFromSheet } from "./lib/mario_animations.js";
 
