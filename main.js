@@ -74,12 +74,6 @@ Screen.display(() => {
   // Foreground (solid tiles)
   Tiled.drawLayerData(fg, fgData, tileset, ts, camX, camY);
 
-  // Player (placeholder 8x16 rect from the tileset’s first tile)
-  tileset.startx = 0; tileset.starty = 0;
-  tileset.endx = 8;   tileset.endy = 16;
-  tileset.width = 8;  tileset.height = 16;
-  tileset.draw(Math.fround(player.x - camX), Math.fround(player.y - camY));
-
   // Draw player (using subrects if you have a spritesheet)
   mario.width = 16; mario.height = 16;
   mario.startx = 0;  mario.starty = 0; // adjust to show correct frame
