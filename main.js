@@ -7,9 +7,6 @@ import * as Tiled from "lib/tiled.js";
 import * as Phys  from "lib/physics.js";
 import * as Inp   from "lib/input.js";
 
-// const SCREEN_WIDTH = 640;
-// const SCREEN_HEIGHT = 448;
-
 // ---- Load assets ----
 const tileset = new Image("assets/tiles/smb_tiles.png");
 tileset.filter = NEAREST; // crisp pixel art. :contentReference[oaicite:5]{index=5}
@@ -23,11 +20,6 @@ const ts    = Tiled.tilesetInfo(level, "tiles");             // tileset name in 
 const fg    = Tiled.findLayer(level, "foregroundLayer");     // tilelayer
 const bg    = Tiled.findLayer(level, "backgroundLayer");     // tilelayer (optional draw)
 const obj   = Tiled.findLayer(level, "objects");             // objectgroup
-
-// resolve tileset image and load it
-// const tilesetPath = Tiled.resolveTilesetImagePath(level, ts, "assets/tiles"); // -> assets/tiles/tiles.png
-// const tileset = new Image(tilesetPath);
-// tileset.filter = NEAREST;
 
 // Decode base64 tile data into arrays of gids
 const fgData = Tiled.decodeBase64Layer(level, fg);
@@ -69,7 +61,6 @@ Screen.display(() => {
 
   // Physics
   player.vy += GRAV;
-//   const collGrid = Tiled.collisionGrid(tileLayer, TILE);
   Phys.step(player, collGrid, TILE); // resolves tile collisions, sets grounded
 
   // Camera: keep Mario ~centered horizontally
@@ -78,9 +69,6 @@ Screen.display(() => {
   camY = 0;
 
   // Draw (auto-clear on Screen.display)
-  // Draw tiles in view
-//   Tiled.drawLayer(tileLayer, tileset, ts, camX, camY);
-  // Draw
   // (Optional) background layer first
   if (bg) Tiled.drawLayerData(bg, bgData, tileset, ts, camX, camY);
   // Foreground (solid tiles)
@@ -97,6 +85,4 @@ Screen.display(() => {
   mario.startx = 0;  mario.starty = 0; // adjust to show correct frame
   mario.endx = 16;   mario.endy = 16;
   mario.draw(Math.fround(player.x - camX), Math.fround(player.y - camY));
-
-  font.print(6, 6, "FPS: " + Screen.getFPS(250)); // requires setFrameCounter(true) if you use it. :contentReference[oaicite:9]{index=9}
 });
