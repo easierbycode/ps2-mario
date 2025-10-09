@@ -11,8 +11,11 @@ import { handleAnimations } from "lib/mario_anim_logic.js";
 import { createMarioAnimationsFromSheet } from "./lib/mario_animations.js";
 
 // ---- Load assets ----
-const tileset = ensurePowerOfTwo(new Image("assets/tiles/smb_tiles.png"));
-tileset.filter = NEAREST; // crisp pixel art
+// Load the original image, set its filter, then ensure it's power-of-two.
+// This order is important for some hardware.
+const originalTileset = new Image("assets/tiles/smb_tiles.png");
+originalTileset.filter = NEAREST; // crisp pixel art
+const tileset = ensurePowerOfTwo(originalTileset);
 
 // --- Load map & tileset based on your JSON ---
 const level = Tiled.loadJSON("assets/tiles/level1.json");
