@@ -6,20 +6,20 @@ Screen.setVSync(true);
 import * as Tiled from "lib/tiled.js";
 import * as Phys  from "lib/physics.js";
 import * as Inp   from "lib/input.js";
+import SpriteSheetAnimation from "lib/spritesheet_animation.js";
+import { handleAnimations } from "lib/mario_anim_logic.js";
+import { createMarioAnimationsFromSheet } from "./lib/mario_animations.js";
 
 // ---- Load assets ----
 const tileset = new Image("assets/tiles/smb_tiles.png");
-tileset.filter = NEAREST; // crisp pixel art. :contentReference[oaicite:5]{index=5}
-
-const mario = new Image("assets/sprites/mario.png");
-mario.filter = NEAREST;
+tileset.filter = NEAREST; // crisp pixel art
 
 // --- Load map & tileset based on your JSON ---
-const level = Tiled.loadJSON("assets/tiles/level1.json");   // put your JSON here
-const ts    = Tiled.tilesetInfo(level, "tiles");             // tileset name in your JSON
-const fg    = Tiled.findLayer(level, "foregroundLayer");     // tilelayer
-const bg    = Tiled.findLayer(level, "backgroundLayer");     // tilelayer (optional draw)
-const obj   = Tiled.findLayer(level, "objects");             // objectgroup
+const level = Tiled.loadJSON("assets/tiles/level1.json");
+const ts    = Tiled.tilesetInfo(level, "tiles");
+const fg    = Tiled.findLayer(level, "foregroundLayer");
+const bg    = Tiled.findLayer(level, "backgroundLayer");
+const obj   = Tiled.findLayer(level, "objects");
 
 // Decode base64 tile data into arrays of gids
 const fgData = Tiled.decodeBase64Layer(level, fg);
@@ -32,8 +32,8 @@ const collGrid = Tiled.collisionGridFromProperties(level, fg, ts);
 const spawn = Tiled.findPlayerSpawn(obj) || { x: 12, y: 44, w: 8, h: 14 };
 
 // ---- World constants (tune as needed) ----
-const TILE = ts.tileWidth;         // e.g., 16
-const GRAV = 0.35;                 // use small forces; consider f32 for perf. :contentReference[oaicite:6]{index=6}
+const TILE  = ts.tileWidth;   // (8 for your map)
+const GRAV  = 0.35;
 const SPEED = 1.2;
 const JUMP_V = -6.0;
 
@@ -43,21 +43,23 @@ let camX = 0, camY = 0;
 // ---- Player ----
 const player = {
   x: spawn.x, y: spawn.y - spawn.h, w: spawn.w || 8, h: spawn.h || 14,
-  vx: 0, vy: 0, grounded: false, facing: 1
+  vx: 0, vy: 0, grounded: false, facing: 1,
+  size: "small",           // "small" | "big"
+  ducking: false,
+  dead: false,
+  animName: ""
 };
 
-// ---- Audio (optional) ----
-// const sCoin  = Sound.load("assets/audio/coin.wav");
-// const sStomp = Sound.load("assets/audio/stomp.wav");
-// Sound.setVolume(80); // master volume. :contentReference[oaicite:7]{index=7}
+// ---- Mario animations from spritesheet (96x48 = 6x3 grid of 16x16) ----
+const ANIMS = createMarioAnimationsFromSheet();
 
-// Helpful: convert many short SFX to ADPCM later (slots), music as OGG/WAV loop. :contentReference[oaicite:8]{index=8}
-
+// ---- Main loop ----
 Screen.display(() => {
   // Input
   const pad = Inp.poll(); // reads Pads.get + helper
   player.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
   if (pad.jumpPressed && player.grounded) player.vy = JUMP_V;
+  player.ducking = (pad.down && player.grounded && player.size === "big");
 
   // Physics
   player.vy += GRAV;
@@ -74,9 +76,14 @@ Screen.display(() => {
   // Foreground (solid tiles)
   Tiled.drawLayerData(fg, fgData, tileset, ts, camX, camY);
 
-  // Draw player (using subrects if you have a spritesheet)
-  mario.width = 16; mario.height = 16;
-  mario.startx = 0;  mario.starty = 0; // adjust to show correct frame
-  mario.endx = 16;   mario.endy = 16;
-  mario.draw(Math.fround(player.x - camX), Math.fround(player.y - camY));
+  // ---- Animation selection (small/big walk, etc.) ----
+  const { name, flipH } = handleAnimations(player, ANIMS);
+
+  // Feet-align sprite to collision box
+  const currentAnim = ANIMS[name];
+  const rect = currentAnim.currentRect; // exposed by SpriteSheetAnimation
+  const drawX = Math.fround(player.x - camX + (player.w - rect.w) * 0.5);
+  const drawY = Math.fround(player.y - camY - (rect.h - player.h));
+
+  currentAnim.draw(drawX, drawY, flipH);
 });
