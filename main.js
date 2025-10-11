@@ -1,13 +1,13 @@
-// {"name":"Mari0 PlayLand","author":"You","version":"20251008","icon":"", "file":"main.js"}
-
-const font = new Font(); // BIOS font when available
-Screen.setVSync(true);
 
 import * as Tiled from "lib/tiled.js";
 import * as Phys  from "lib/physics.js";
 import * as Inp   from "lib/input.js";
 import { handleAnimations } from "lib/mario_anim_logic.js";
-import { createMarioAnimationsFromSheet } from "./lib/mario_animations.js";
+import { createMarioAnimationsFromSheet } from "lib/mario_animations.js";
+
+
+// ---- Setup screen ----
+Screen.setVSync(true);  // black screen if false
 
 // ---- Load assets ----
 const tileset = new Image("assets/tiles/smb_tiles.png");
@@ -98,6 +98,5 @@ Screen.display(() => {
   const drawY = Math.fround(player.y - camY - (rect.h - player.h));
 
   // Draw scaled to fill vertical screen
-//   drawAnimScaled(currentAnim, drawX, drawY, flipH, SCALE);
   currentAnim.draw(drawX, drawY, flipH, SCALE);
 });

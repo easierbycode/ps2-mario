@@ -1226,8 +1226,8 @@
     {
       "columns": 16,
       "firstgid": 1,
-      "image": "../tiles/tiles.png",
-      "imageheight": 176,
+      "image": "../tiles/smb_tiles.png",
+      "imageheight": 256,
       "imagewidth": 128,
       "margin": 0,
       "name": "tiles",
