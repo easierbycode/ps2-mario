@@ -1,13 +1,11 @@
-
 import * as Tiled from "lib/tiled.js";
 import * as Phys  from "lib/physics.js";
 import * as Inp   from "lib/input.js";
 import { handleAnimations } from "lib/mario_anim_logic.js";
 import { createMarioAnimationsFromSheet } from "lib/mario_animations.js";
 
-
 // ---- Setup screen ----
-Screen.setVSync(true);  // black screen if false
+Screen.setVSync(true); // black screen if false
 
 // ---- Load assets ----
 const tileset = new Image("assets/tiles/smb_tiles.png");
@@ -41,9 +39,14 @@ let camX = 0, camY = 0;
 
 // ---- Player ----
 const player = {
-  x: spawn.x, y: spawn.y - spawn.h, w: spawn.w || 8, h: spawn.h || 14,
-  vx: 0, vy: 0, grounded: false, facing: 1,
-  size: "small",           // "small" | "big"
+  x: spawn.x,
+  y: spawn.y - spawn.h,
+  w: spawn.w || 8,
+  h: spawn.h || 14,
+  vx: 0, vy: 0,
+  grounded: false,
+  facing: 1,
+  size: "small", // "small" | "big"
   ducking: false,
   dead: false,
   animName: ""
@@ -52,21 +55,30 @@ const player = {
 // ---- Mario animations from spritesheet (96x48 = 6x3 grid of 16x16) ----
 const ANIMS = createMarioAnimationsFromSheet();
 
-// ---------- helpers: scale-aware drawing so the game FILLS VERTICALLY ----------
+// ---------- helpers: integer scale + half-texel and pixel snapping ----------
 /**
- * Compute logical → physical scale so that the full map height fills screen height.
- * Our logical height is the tile layer height (in tiles) * TILE (pixels per tile).
+ * Integer scale so logical 144 px fills vertical screen without fractional scaling.
+ * Example: 480p -> floor(480/144) = 3; 448i -> floor(448/144) = 3.
  */
-function getScaleToFillVertically() {
+function getIntScaleToFillVertically() {
   const view = Screen.getMode();
   const logicalH = (fg?.height || level.height || 18) * TILE; // e.g., 18 * 8 = 144
-  return view.height / logicalH;
+  return Math.max(1, Math.floor(view.height / logicalH));
+}
+
+/** Snap a logical coordinate so that (coord * scale) lands on an integer pixel. */
+function snapToPixel(coord, scale) {
+  return Math.round(coord * scale) / scale;
 }
 
 // ---- Main loop ----
 Screen.display(() => {
   // Recompute scale each frame (handles mode changes)
-  const SCALE = getScaleToFillVertically();
+  const SCALE = getIntScaleToFillVertically();
+
+  // Half-texel bias in logical units: shifting by -0.5 screen px
+  // aligns texel centers to pixel centers on PS2 GS.
+  const HALF_TEXEL_BIAS = 0.5 / SCALE;
 
   // Input
   const pad = Inp.poll();
@@ -81,21 +93,32 @@ Screen.display(() => {
   // Camera in logical units; center using *logical* viewport width
   const view = Screen.getMode();
   const viewW_logical = view.width / SCALE;
+
+  // Integer camera to avoid subpixel scrolling; this pairs with integer SCALE.
   camX = Math.max(0, Math.floor(player.x - (viewW_logical * 0.5)));
   camY = 0;
 
-  // Draw background then foreground (scaled)
-  if (bg) Tiled.drawLayerData(bg, bgData, tileset, ts, camX, camY, SCALE);
-  Tiled.drawLayerData(fg, fgData, tileset, ts, camX, camY, SCALE);
+  // ---- Draw background then foreground (scaled) ----
+  // Apply the same half-texel bias to map layers so tile edges don't shimmer.
+  if (bg) Tiled.drawLayerData(bg, bgData, tileset, ts,
+    camX - HALF_TEXEL_BIAS, camY - HALF_TEXEL_BIAS, SCALE);
+
+  Tiled.drawLayerData(fg, fgData, tileset, ts,
+    camX - HALF_TEXEL_BIAS, camY - HALF_TEXEL_BIAS, SCALE);
 
   // ---- Animation selection ----
   const { name, flipH } = handleAnimations(player, ANIMS);
   const currentAnim = ANIMS[name];
   const rect = currentAnim.currentRect;
 
-  // Feet-align sprite to collision box in logical units
-  const drawX = Math.fround(player.x - camX + (player.w - rect.w) * 0.5);
-  const drawY = Math.fround(player.y - camY - (rect.h - player.h));
+  // Feet-align sprite to collision box in logical units.
+  // Snap so (drawX * SCALE) and (drawY * SCALE) land on whole pixels,
+  // then apply the same half-texel bias.
+  const drawX_logical = player.x - camX + (player.w - rect.w) * 0.5;
+  const drawY_logical = player.y - camY - (rect.h - player.h);
+
+  const drawX = snapToPixel(drawX_logical, SCALE) - HALF_TEXEL_BIAS;
+  const drawY = snapToPixel(drawY_logical, SCALE) - HALF_TEXEL_BIAS;
 
   // Draw scaled to fill vertical screen
   currentAnim.draw(drawX, drawY, flipH, SCALE);
