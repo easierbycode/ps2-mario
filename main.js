@@ -35,22 +35,34 @@ const GRAV  = 0.35;
 const SPEED = 1.2;
 const JUMP_V = -6.0;
 
+const SMALL_MARIO_WIDTH = spawn.w || 8;
+const SMALL_MARIO_HEIGHT = spawn.h || 14;
+const BIG_MARIO_WIDTH = SMALL_MARIO_WIDTH;
+const BIG_MARIO_HEIGHT = SMALL_MARIO_HEIGHT + 4;
+
 // ---- Camera ----
 let camX = 0, camY = 0;
 
 // ---- Player ----
 const player = {
   x: spawn.x,
-  y: spawn.y - spawn.h,
-  w: spawn.w || 8,
-  h: spawn.h || 14,
-  vx: 0, vy: 0,
+  y: spawn.y - SMALL_MARIO_HEIGHT,
+  w: SMALL_MARIO_WIDTH,
+  h: SMALL_MARIO_HEIGHT,
+  vx: 0,
+  vy: 0,
   grounded: false,
   facing: 1,
   size: "small", // "small" | "big"
   ducking: false,
   dead: false,
-  animName: ""
+  animName: "",
+  invulnerable: false,
+  invulnerableTimer: 0,
+  smallWidth: SMALL_MARIO_WIDTH,
+  smallHeight: SMALL_MARIO_HEIGHT,
+  bigWidth: BIG_MARIO_WIDTH,
+  bigHeight: BIG_MARIO_HEIGHT
 };
 
 // ---- Mario animations from spritesheet (96x48 = 6x3 grid of 16x16) ----
@@ -62,6 +74,8 @@ const COIN_ANIMS = ObjAnims.createCoinAnimations();
 const BOX_SPRITES = ObjAnims.createBoxSprite();
 const BRICK_SPRITE = ObjAnims.createBrickSprite();
 
+const MUSHROOM_SPRITE = ObjAnims.createMushroomSprite();
+
 // ---- Game Objects ----
 const enemies = [];
 const boxes = [];
@@ -69,6 +83,164 @@ const bricks = [];
 const collectibles = [];
 const platforms = [];
 const portals = [];
+
+function makePlayerInvulnerable(frames = 120) {
+  player.invulnerable = true;
+  player.invulnerableTimer = frames;
+}
+
+function growMario() {
+  if (player.size === "big") return;
+  const deltaHeight = player.bigHeight - player.h;
+  player.size = "big";
+  player.w = player.bigWidth;
+  player.h = player.bigHeight;
+  player.y -= deltaHeight;
+  player.ducking = false;
+}
+
+function shrinkMario() {
+  if (player.size === "small") return;
+  const deltaHeight = player.h - player.smallHeight;
+  player.size = "small";
+  player.w = player.smallWidth;
+  player.h = player.smallHeight;
+  player.y += deltaHeight;
+}
+
+function getPlayerVulnerable() {
+  return !player.invulnerable;
+}
+
+function playerGotHit() {
+  if (player.dead || !getPlayerVulnerable()) return;
+  if (player.size === "big") {
+    shrinkMario();
+    makePlayerInvulnerable(120);
+  } else {
+    player.dead = true;
+    player.vx = 0;
+    player.vy = -4;
+    player.animName = "dead";
+  }
+}
+
+function bounceUpAfterHitEnemyOnHead() {
+  player.vy = JUMP_V * 0.5;
+}
+
+player.growMario = growMario;
+player.shrinkMario = shrinkMario;
+player.getVulnerable = getPlayerVulnerable;
+player.gotHit = playerGotHit;
+player.bounceUpAfterHitEnemyOnHead = bounceUpAfterHitEnemyOnHead;
+
+function createCollectible(props = {}) {
+  const item = {
+    x: props.x ?? 0,
+    y: props.y ?? 0,
+    w: props.w ?? TILE,
+    h: props.h ?? TILE,
+    vx: props.vx ?? 0,
+    vy: props.vy ?? 0,
+    type: props.type ?? "coin",
+    texture: { key: props.textureKey ?? props.type ?? "coin" },
+    sprite: props.sprite ?? null,
+    fromTilemap: props.fromTilemap ?? false,
+    tileX: props.tileX,
+    tileY: props.tileY,
+    moveDir: props.moveDir ?? 0,
+    moveSpeed: props.moveSpeed ?? 0,
+    points: props.points ?? 0,
+    _collected: false
+  };
+
+  item.collected = function () {
+    if (this._collected) return;
+    this._collected = true;
+  };
+
+  return item;
+}
+
+function createMushroomCollectible(x, y, options = {}) {
+  return createCollectible({
+    x,
+    y,
+    w: options.w ?? TILE,
+    h: options.h ?? TILE,
+    type: "mushroom",
+    textureKey: "mushroom",
+    sprite: MUSHROOM_SPRITE,
+    moveDir: options.moveDir ?? 1,
+    moveSpeed: options.moveSpeed ?? 0.8,
+    vx: options.vx ?? 0,
+    vy: options.vy ?? -2.5,
+    points: options.points ?? 1000
+  });
+}
+
+function handlePlayerEnemyOverlap(_player, _enemy) {
+  if (!_player.getVulnerable()) return;
+  _player.gotHit();
+}
+
+function handlePlayerCollectiblesOverlap(_player, _collectible) {
+  switch (_collectible.texture.key) {
+    case "flower":
+      break;
+    case "mushroom":
+      _player.growMario();
+      break;
+    case "star":
+      break;
+    default:
+      break;
+  }
+  _collectible.collected();
+}
+
+function updatePlayerState() {
+  if (player.invulnerable) {
+    if (player.invulnerableTimer > 0) {
+      player.invulnerableTimer--;
+    } else {
+      player.invulnerable = false;
+      player.invulnerableTimer = 0;
+    }
+  }
+}
+
+function updateCollectibles() {
+  collectibles.forEach((item) => {
+    if (item._collected) return;
+
+    if (
+      (item.type === "coin" || item.type === "rotatingCoin") &&
+      typeof item.vy === "number"
+    ) {
+      item.vy += 0.1;
+      item.y += item.vy;
+      if (item.vy > 2) {
+        item.collected();
+      }
+      return;
+    }
+
+    if (item.type === "mushroom") {
+      item.moveDir = item.moveDir || 1;
+      item.moveSpeed = item.moveSpeed || 0.8;
+      item.vx = item.moveSpeed * item.moveDir;
+      item.vy = Math.min(item.vy + GRAV, 6);
+      const desiredVX = item.vx;
+      Phys.step(item, collGrid, TILE);
+      if (Math.abs(item.vx) < Math.abs(desiredVX) * 0.5) {
+        item.moveDir *= -1;
+        item.vx = item.moveSpeed * item.moveDir;
+      }
+    }
+  });
+}
 
 // Load objects from tilemap
 function loadObjectsFromTilemap() {
@@ -118,28 +290,54 @@ function loadObjectsFromTilemap() {
         });
         break;
 
-      case 'collectible':
-        collectibles.push({
-          x: x,
-          y: y,
-          w: 8,
-          h: 8,
-          type: object.properties?.kindOfCollectible || 'coin',
-          collected: false
-        });
+      case 'collectible': {
+        const collectibleType =
+          object.properties?.kindOfCollectible || 'coin';
+        const direction =
+          object.properties?.direction === 'left' ? -1 : 1;
+        const width = object.width || TILE;
+        const height = object.height || TILE;
+        if (collectibleType === 'mushroom') {
+          collectibles.push(
+            createMushroomCollectible(x, y, {
+              w: width,
+              h: height,
+              moveDir: direction,
+              moveSpeed: 0.8,
+              vy: 0
+            })
+          );
+        } else {
+          collectibles.push(
+            createCollectible({
+              x,
+              y,
+              w: width,
+              h: height,
+              type: collectibleType,
+              textureKey: collectibleType
+            })
+          );
+        }
         break;
+      }
 
       case 'coin':
-      case 'rotatingCoin':
-        collectibles.push({
-          x: x,
-          y: y,
-          w: 8,
-          h: 8,
-          type: object.type,
-          collected: false
-        });
+      case 'rotatingCoin': {
+        const width = object.width || TILE;
+        const height = object.height || TILE;
+        collectibles.push(
+          createCollectible({
+            x,
+            y,
+            w: width,
+            h: height,
+            type: object.type,
+            textureKey: object.type
+          })
+        );
         break;
+      }
     }
   });
 
@@ -151,17 +349,19 @@ function loadObjectsFromTilemap() {
       for (let x = 0; x < fg.width; x++) {
         const tileId = fgData[y * fg.width + x];
         if (coinTileIds.includes(tileId)) {
-          collectibles.push({
-            x: x * TILE,
-            y: y * TILE,
-            w: TILE,
-            h: TILE,
-            type: 'coin',
-            collected: false,
-            fromTilemap: true,
-            tileX: x,
-            tileY: y
-          });
+          collectibles.push(
+            createCollectible({
+              x: x * TILE,
+              y: y * TILE,
+              w: TILE,
+              h: TILE,
+              type: 'coin',
+              textureKey: 'coin',
+              fromTilemap: true,
+              tileX: x,
+              tileY: y
+            })
+          );
           // Clear the tile from the tilemap data so it won't be drawn twice
           fgData[y * fg.width + x] = 0;
         }
@@ -276,13 +476,9 @@ function checkCollisions() {
           enemy.animState = 'dead';
           if (!enemy.deathTimer) enemy.deathTimer = 60;
         }
-        player.vy = JUMP_V * 0.5; // Bounce
+        player.bounceUpAfterHitEnemyOnHead();
       } else if (!player.dead) {
-        // Player takes damage
-        player.dead = true;
-        player.vx = 0;  // Stop horizontal movement
-        player.vy = -4; // Small death jump
-        player.animName = "dead"; // Set death animation state
+        handlePlayerEnemyOverlap(player, enemy);
       }
     }
   });
@@ -321,15 +517,28 @@ function checkCollisions() {
             box.active = false;
 
             if (box.content === 'coin' || box.content === 'rotatingCoin') {
-              collectibles.push({
-                x: box.x,
-                y: box.y - 8,
-                w: 8,
-                h: 8,
-                type: box.content === 'rotatingCoin' ? 'rotatingCoin' : 'coin',
-                collected: false,
-                vy: -2
-              });
+              const type =
+                box.content === 'rotatingCoin' ? 'rotatingCoin' : 'coin';
+              collectibles.push(
+                createCollectible({
+                  x: box.x,
+                  y: box.y - TILE,
+                  w: TILE,
+                  h: TILE,
+                  type,
+                  textureKey: type,
+                  vy: -2
+                })
+              );
+            } else if (box.content === 'mushroom') {
+              const direction = player.facing >= 0 ? 1 : -1;
+              collectibles.push(
+                createMushroomCollectible(box.x, box.y - TILE, {
+                  moveDir: direction,
+                  moveSpeed: 0.8,
+                  vy: -3
+                })
+              );
             }
           }
           // Always bounce player down when hitting box from below
@@ -378,13 +587,13 @@ function checkCollisions() {
 
   // Player vs Collectibles
   collectibles.forEach(item => {
-    if (item.collected) return;
+    if (item._collected) return;
 
     if (player.x < item.x + item.w &&
         player.x + player.w > item.x &&
         player.y < item.y + item.h &&
         player.y + player.h > item.y) {
-      item.collected = true;
+      handlePlayerCollectiblesOverlap(player, item);
     }
   });
 }
@@ -414,9 +623,12 @@ Screen.display(() => {
     player.y += player.vy;
   }
 
+  updatePlayerState();
+
   // Update entities and check collisions
   updateEnemies();
   updatePlatforms();
+  updateCollectibles();
   checkCollisions();
 
   // Camera in logical units; center using *logical* viewport width
@@ -505,16 +717,9 @@ Screen.display(() => {
 
   // Draw collectibles
   collectibles.forEach(item => {
-    if (item.collected) return;
+    if (item._collected) return;
     const drawX_c = item.x - camX;
     const drawY_c = item.y - camY;
-
-    // Animate floating collectibles
-    if (item.vy !== undefined) {
-      item.vy += 0.1;
-      item.y += item.vy;
-      if (item.vy > 2) item.collected = true;
-    }
 
     const dx = snapToPixel(drawX_c, SCALE) - HALF_TEXEL_BIAS;
     const dy = snapToPixel(drawY_c, SCALE) - HALF_TEXEL_BIAS;
@@ -522,11 +727,15 @@ Screen.display(() => {
     if (item.type === 'coin' || item.type === 'rotatingCoin') {
       const coinAnim = item.type === 'rotatingCoin' ? COIN_ANIMS.rotatingCoin : COIN_ANIMS.coin;
       coinAnim.draw(dx, dy, false, SCALE);
+    } else if (item.type === 'mushroom' && item.sprite) {
+      const rect = item.sprite.currentRect;
+      const adjustedY = dy - (rect.h - item.h);
+      item.sprite.draw(dx, adjustedY, false, SCALE);
     } else {
-      const color = item.type === 'mushroom' ?
-        Color.new(0, 255, 0, 128) :
-        Color.new(255, 215, 0, 128);
-      Draw.rect(drawX_c * SCALE, drawY_c * SCALE, item.w * SCALE, item.h * SCALE, color);
+      const color = Color.new(255, 215, 0, 128);
+      Draw.rect(drawX_c * SCALE, drawY_c * SCALE,
+                item.w * SCALE, item.h * SCALE,
+                color);
     }
   });
 
