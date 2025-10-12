@@ -168,27 +168,122 @@ function updateEnemies() {
     enemy.x += enemy.vx;
     enemy.y += enemy.vy;
 
-    // Simple collision with ground
-    const tileY = Math.floor((enemy.y + enemy.h) / TILE);
-    const tileX = Math.floor((enemy.x + enemy.w/2) / TILE);
+    // Ground collision
+    const bottomY = Math.floor((enemy.y + enemy.h) / TILE);
+    const midX = Math.floor((enemy.x + enemy.w/2) / TILE);
 
-    if (collGrid.data && collGrid.data[tileY * collGrid.w + tileX] === 1) {
-      enemy.y = tileY * TILE - enemy.h;
-      enemy.vy = 0;
+    if (collGrid.data && bottomY < collGrid.h) {
+      const groundTile = collGrid.data[bottomY * collGrid.w + midX];
+      if (groundTile === 1) {
+        enemy.y = bottomY * TILE - enemy.h;
+        enemy.vy = 0;
+      }
     }
 
-    // Turn at edges
-    const leftTile = Math.floor((enemy.x - 1) / TILE);
-    const rightTile = Math.floor((enemy.x + enemy.w + 1) / TILE);
+    // Wall collision and edge detection
+    const leftX = Math.floor((enemy.x + enemy.vx) / TILE);
+    const rightX = Math.floor((enemy.x + enemy.w + enemy.vx) / TILE);
+    const centerY = Math.floor((enemy.y + enemy.h/2) / TILE);
+    const feetY = Math.floor((enemy.y + enemy.h + 1) / TILE);
 
-    if (collGrid.data[tileY * collGrid.w + leftTile] !== 1 ||
-        collGrid.data[tileY * collGrid.w + rightTile] !== 1) {
+    // Check for walls at enemy's center height
+    let hitWall = false;
+    if (enemy.vx < 0 && collGrid.data[centerY * collGrid.w + leftX] === 1) {
+      hitWall = true;
+    } else if (enemy.vx > 0 && collGrid.data[centerY * collGrid.w + rightX] === 1) {
+      hitWall = true;
+    }
+
+    // Check for platform edges
+    let atEdge = false;
+    if (enemy.vx < 0 && collGrid.data[feetY * collGrid.w + leftX] !== 1) {
+      atEdge = true;
+    } else if (enemy.vx > 0 && collGrid.data[feetY * collGrid.w + rightX] !== 1) {
+      atEdge = true;
+    }
+
+    // Turn around if hit wall or at edge
+    if (hitWall || atEdge) {
       enemy.vx = -enemy.vx;
     }
 
     // Update animation for goombas
     if (enemy.type === 'goomba' && enemy.animState === 'walk') {
       GOOMBA_ANIMS.walk.draw(-1000, -1000, false, 1); // Update animation timer
+    }
+  });
+}
+
+function updatePlatforms() {
+  platforms.forEach(platform => {
+    // Platforms logic here
+  });
+}
+
+function checkCollisions() {
+  // Player vs Enemies
+  enemies.forEach(enemy => {
+    if (!enemy.alive || !enemy.activated) return;
+
+    if (player.x < enemy.x + enemy.w &&
+        player.x + player.w > enemy.x &&
+        player.y < enemy.y + enemy.h &&
+        player.y + player.h > enemy.y) {
+
+      // Check if player is stomping (falling down and feet above enemy head)
+      if (player.vy > 0 && player.y + player.h - enemy.y < 4) {
+        enemy.alive = false;
+        if (enemy.type === 'goomba') {
+          enemy.animState = 'dead';
+          if (!enemy.deathTimer) enemy.deathTimer = 60;
+        }
+        player.vy = JUMP_V * 0.5; // Bounce
+      } else if (!player.dead) {
+        // Player takes damage
+        player.dead = true;
+      }
+    }
+  });
+
+  // Player vs Boxes
+  boxes.forEach(box => {
+    if (!box.active) return;
+
+    if (player.x < box.x + box.w &&
+        player.x + player.w > box.x &&
+        player.y < box.y + box.h &&
+        player.y + player.h > box.y) {
+
+      // Check if hitting from below (player head above box bottom and moving up)
+      if (player.vy < 0 && player.y > box.y + box.h - 4) {
+        box.hit = true;
+        box.active = false;
+        player.vy = Math.abs(player.vy) * 0.2; // Small downward bounce instead of zero
+
+        if (box.content === 'coin' || box.content === 'rotatingCoin') {
+          collectibles.push({
+            x: box.x,
+            y: box.y - 8,
+            w: 8,
+            h: 8,
+            type: box.content === 'rotatingCoin' ? 'rotatingCoin' : 'coin',
+            collected: false,
+            vy: -2
+          });
+        }
+      }
+    }
+  });
+
+  // Player vs Collectibles
+  collectibles.forEach(item => {
+    if (item.collected) return;
+
+    if (player.x < item.x + item.w &&
+        player.x + player.w > item.x &&
+        player.y < item.y + item.h &&
+        player.y + player.h > item.y) {
+      item.collected = true;
     }
   });
 }
@@ -212,8 +307,10 @@ Screen.display(() => {
   player.vy += GRAV;
   Phys.step(player, collGrid, TILE);
 
-  // Update enemies
+  // Update entities and check collisions
   updateEnemies();
+  updatePlatforms();
+  checkCollisions();
 
   // Camera in logical units; center using *logical* viewport width
   const view = Screen.getMode();
