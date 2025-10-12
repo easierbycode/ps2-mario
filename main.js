@@ -113,7 +113,8 @@ function loadObjectsFromTilemap() {
           y: y,
           w: 8,
           h: 8,
-          hits: object.properties?.hits || 1
+          hits: object.properties?.hits || 1,
+          destroyed: false
         });
         break;
 
@@ -127,11 +128,49 @@ function loadObjectsFromTilemap() {
           collected: false
         });
         break;
+
+      case 'coin':
+      case 'rotatingCoin':
+        collectibles.push({
+          x: x,
+          y: y,
+          w: 8,
+          h: 8,
+          type: object.type,
+          collected: false
+        });
+        break;
     }
   });
+
+  // Check for coins in the tilemap itself (tile-based coins)
+  // Some levels might have coins as tiles rather than objects
+  if (fg && fgData) {
+    const coinTileIds = [96, 97, 98]; // Common coin tile IDs in SMB tilesets
+    for (let y = 0; y < fg.height; y++) {
+      for (let x = 0; x < fg.width; x++) {
+        const tileId = fgData[y * fg.width + x];
+        if (coinTileIds.includes(tileId)) {
+          collectibles.push({
+            x: x * TILE,
+            y: y * TILE,
+            w: TILE,
+            h: TILE,
+            type: 'coin',
+            collected: false,
+            fromTilemap: true,
+            tileX: x,
+            tileY: y
+          });
+          // Clear the tile from the tilemap data so it won't be drawn twice
+          fgData[y * fg.width + x] = 0;
+        }
+      }
+    }
+  }
 }
 
-// Initialize objects once
+ // Initialize objects once
 loadObjectsFromTilemap();
 
 // ---------- helpers: integer scale + half-texel and pixel snapping ----------
@@ -241,36 +280,98 @@ function checkCollisions() {
       } else if (!player.dead) {
         // Player takes damage
         player.dead = true;
+        player.vx = 0;  // Stop horizontal movement
+        player.vy = -4; // Small death jump
+        player.animName = "dead"; // Set death animation state
       }
     }
   });
 
-  // Player vs Boxes
+  // Player vs Boxes - improved collision handling
   boxes.forEach(box => {
-    if (!box.active) return;
-
     if (player.x < box.x + box.w &&
         player.x + player.w > box.x &&
         player.y < box.y + box.h &&
         player.y + player.h > box.y) {
 
-      // Check if hitting from below (player head above box bottom and moving up)
-      if (player.vy < 0 && player.y > box.y + box.h - 4) {
-        box.hit = true;
-        box.active = false;
-        player.vy = Math.abs(player.vy) * 0.2; // Small downward bounce instead of zero
+      const overlapX = Math.min(player.x + player.w, box.x + box.w) - Math.max(player.x, box.x);
+      const overlapY = Math.min(player.y + player.h, box.y + box.h) - Math.max(player.y, box.y);
 
-        if (box.content === 'coin' || box.content === 'rotatingCoin') {
-          collectibles.push({
-            x: box.x,
-            y: box.y - 8,
-            w: 8,
-            h: 8,
-            type: box.content === 'rotatingCoin' ? 'rotatingCoin' : 'coin',
-            collected: false,
-            vy: -2
-          });
+      // Determine collision direction by smallest overlap
+      if (overlapX < overlapY) {
+        // Horizontal collision (left or right side)
+        if (player.x < box.x) {
+          player.x = box.x - player.w;
+        } else {
+          player.x = box.x + box.w;
         }
+        player.vx = 0;
+      } else {
+        // Vertical collision (top or bottom)
+        if (player.y < box.y) {
+          // Player is above box - landing on top
+          player.y = box.y - player.h;
+          player.vy = 0;
+          player.grounded = true;
+        } else {
+          // Player is below box - hitting from underneath
+          if (box.active && player.vy < 0) {
+            // Trigger box content
+            box.hit = true;
+            box.active = false;
+
+            if (box.content === 'coin' || box.content === 'rotatingCoin') {
+              collectibles.push({
+                x: box.x,
+                y: box.y - 8,
+                w: 8,
+                h: 8,
+                type: box.content === 'rotatingCoin' ? 'rotatingCoin' : 'coin',
+                collected: false,
+                vy: -2
+              });
+            }
+          }
+          // Always bounce player down when hitting box from below
+          player.y = box.y + box.h;
+          player.vy = Math.abs(player.vy) * 0.2;
+        }
+      }
+    }
+  });
+
+  // Player vs Bricks
+  bricks.forEach(brick => {
+    if (brick.destroyed) return;
+
+    if (player.x < brick.x + brick.w &&
+        player.x + player.w > brick.x &&
+        player.y < brick.y + brick.h &&
+        player.y + player.h > brick.y) {
+
+      // Check if hitting from below
+      if (player.vy < 0 && player.y > brick.y + brick.h - 4) {
+        // Hit brick from below
+        player.vy = Math.abs(player.vy) * 0.2;
+        brick.hits--;
+        if (brick.hits <= 0) {
+          brick.destroyed = true;
+        }
+      }
+      // Provide top collision
+      else if (player.vy > 0 && player.y < brick.y) {
+        player.y = brick.y - player.h;
+        player.vy = 0;
+        player.grounded = true;
+      }
+      // Side collisions
+      else if (player.vx !== 0) {
+        if (player.x < brick.x) {
+          player.x = brick.x - player.w;
+        } else {
+          player.x = brick.x + brick.w;
+        }
+        player.vx = 0;
       }
     }
   });
@@ -299,13 +400,19 @@ Screen.display(() => {
 
   // Input
   const pad = Inp.poll();
-  player.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
-  if (pad.jumpPressed && player.grounded) player.vy = JUMP_V;
-  player.ducking = (pad.down && player.grounded && player.size === "big");
+  if (!player.dead) {
+    player.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
+    if (pad.jumpPressed && player.grounded) player.vy = JUMP_V;
+    player.ducking = (pad.down && player.grounded && player.size === "big");
 
-  // Physics (in logical units)
-  player.vy += GRAV;
-  Phys.step(player, collGrid, TILE);
+    // Physics (in logical units)
+    player.vy += GRAV;
+    Phys.step(player, collGrid, TILE);
+  } else {
+    // When dead, only apply death jump physics
+    player.vy += GRAV * 0.5;
+    player.y += player.vy;
+  }
 
   // Update entities and check collisions
   updateEnemies();
@@ -328,9 +435,20 @@ Screen.display(() => {
     camX - HALF_TEXEL_BIAS, camY - HALF_TEXEL_BIAS, SCALE);
 
   // ---- Animation selection ----
-  const { name, flipH } = handleAnimations(player, ANIMS);
-  const currentAnim = ANIMS[name];
-  const rect = currentAnim.currentRect;
+  let currentAnim, rect, flipH;
+
+  if (player.dead) {
+    // Use death animation frame (small mario frame 4 is the jump/dead frame)
+    currentAnim = ANIMS.smallJump || ANIMS.smallWalk;
+    currentAnim.frame = 0; // Force to first frame
+    rect = currentAnim.currentRect;
+    flipH = player.facing < 0;
+  } else {
+    const animResult = handleAnimations(player, ANIMS);
+    currentAnim = ANIMS[animResult.name];
+    rect = currentAnim.currentRect;
+    flipH = animResult.flipH;
+  }
 
   // Feet-align sprite to collision box in logical units.
   const drawX_logical = player.x - camX + (player.w - rect.w) * 0.5;
@@ -377,6 +495,7 @@ Screen.display(() => {
 
   // Draw bricks
   bricks.forEach(brick => {
+    if (brick.destroyed) return;
     const drawX_br = brick.x - camX;
     const drawY_br = brick.y - camY;
     const dx = snapToPixel(drawX_br, SCALE) - HALF_TEXEL_BIAS;
