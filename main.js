@@ -724,7 +724,7 @@ Screen.display(() => {
     const dx = snapToPixel(drawX_c, SCALE) - HALF_TEXEL_BIAS;
     const dy = snapToPixel(drawY_c, SCALE) - HALF_TEXEL_BIAS;
 
-    if (item.type === 'coin' || item.type === 'rotatingCoin') {
+    if (item.type === 'coin' || item.type === 'coin2' || item.type === 'rotatingCoin') {
       const coinAnim = item.type === 'rotatingCoin' ? COIN_ANIMS.rotatingCoin : COIN_ANIMS.coin;
       coinAnim.draw(dx, dy, false, SCALE);
     } else if (item.type === 'mushroom' && item.sprite) {
