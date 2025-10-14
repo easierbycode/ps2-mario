@@ -13,18 +13,18 @@ const tileset = new Image("assets/tiles/smb_tiles.png");
 tileset.filter = NEAREST; // crisp pixel art
 
 // --- Load map & tileset based on your JSON ---
-const level = Tiled.loadJSON("assets/tiles/level1.json");
-const ts    = Tiled.tilesetInfo(level, "tiles");
-const fg    = Tiled.findLayer(level, "foregroundLayer");
-const bg    = Tiled.findLayer(level, "backgroundLayer");
-const obj   = Tiled.findLayer(level, "objects");
+let level = Tiled.loadJSON("assets/tiles/level1.json");
+let ts    = Tiled.tilesetInfo(level, "tiles");
+let fg    = Tiled.findLayer(level, "foregroundLayer");
+let bg    = Tiled.findLayer(level, "backgroundLayer");
+let obj   = Tiled.findLayer(level, "objects");
 
 // Decode base64 tile data into arrays of gids
-const fgData = Tiled.decodeBase64Layer(level, fg);
-const bgData = Tiled.decodeBase64Layer(level, bg);
+let fgData = Tiled.decodeBase64Layer(level, fg);
+let bgData = Tiled.decodeBase64Layer(level, bg);
 
 // Build collision grid from collide:true tileproperties
-const collGrid = Tiled.collisionGridFromProperties(level, fg, ts);
+let collGrid = Tiled.collisionGridFromProperties(level, fg, ts);
 
 // Player spawn from object layer (type or name == "player")
 const spawn = Tiled.findPlayerSpawn(obj) || { x: 12, y: 44, w: 8, h: 14 };
@@ -110,6 +110,43 @@ function shrinkMario() {
 
 function getPlayerVulnerable() {
   return !player.invulnerable;
+}
+
+function loadLevel(levelName) {
+  const levelPath = `assets/tiles/${levelName}.json`;
+  level = Tiled.loadJSON(levelPath);
+  ts = Tiled.tilesetInfo(level, "tiles");
+  fg = Tiled.findLayer(level, "foregroundLayer");
+  bg = Tiled.findLayer(level, "backgroundLayer");
+  obj = Tiled.findLayer(level, "objects");
+
+  fgData = Tiled.decodeBase64Layer(level, fg);
+  bgData = Tiled.decodeBase64Layer(level, bg);
+
+  collGrid = Tiled.collisionGridFromProperties(level, fg, ts);
+
+  enemies.length = 0;
+  boxes.length = 0;
+  bricks.length = 0;
+  collectibles.length = 0;
+  platforms.length = 0;
+  portals.length = 0;
+
+  loadObjectsFromTilemap();
+}
+
+function handlePlayerPortalOverlap(player, portal) {
+  const pad = Inp.poll();
+  if (
+    (pad.down && portal.destination.dir === "down") ||
+    (pad.right && portal.destination.dir === "right")
+  ) {
+    loadLevel(portal.destination.level);
+    player.x = portal.destination.x;
+    player.y = portal.destination.y;
+    player.vx = 0;
+    player.vy = 0;
+  }
 }
 
 function playerGotHit() {
@@ -338,6 +375,21 @@ function loadObjectsFromTilemap() {
         );
         break;
       }
+      case "portal":
+        portals.push({
+          x: x,
+          y: y,
+          w: object.width,
+          h: object.height,
+          name: object.name,
+          destination: {
+            level: object.name,
+            x: object.properties.marioSpawnX,
+            y: object.properties.marioSpawnY,
+            dir: object.properties.direction,
+          },
+        });
+        break;
     }
   });
 
@@ -594,6 +646,16 @@ function checkCollisions() {
         player.y < item.y + item.h &&
         player.y + player.h > item.y) {
       handlePlayerCollectiblesOverlap(player, item);
+    }
+  });
+
+  // Player vs Portals
+  portals.forEach(portal => {
+    if (player.x < portal.x + portal.w &&
+        player.x + player.w > portal.x &&
+        player.y < portal.y + portal.h &&
+        player.y + player.h > portal.y) {
+      handlePlayerPortalOverlap(player, portal);
     }
   });
 }
