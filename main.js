@@ -832,12 +832,12 @@ Screen.display(() => {
     }
   });
 
-  // Draw platforms (keep as rectangles for now)
+  // Draw platforms
   platforms.forEach(platform => {
     const drawX_p = platform.x - camX;
     const drawY_p = platform.y - camY;
-    Draw.rect(drawX_p * SCALE, drawY_p * SCALE,
-              platform.w * SCALE, platform.h * SCALE,
-              Color.new(139, 69, 19, 255));
+    const dx = snapToPixel(drawX_p, SCALE) - HALF_TEXEL_BIAS;
+    const dy = snapToPixel(drawY_p, SCALE) - HALF_TEXEL_BIAS;
+    platform.sprite.draw(dx, dy, false, SCALE);
   });
 });
