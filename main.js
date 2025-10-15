@@ -13,6 +13,7 @@ const tileset = new Image("assets/tiles/smb_tiles.png");
 tileset.filter = NEAREST; // crisp pixel art
 
 // --- Load map & tileset based on your JSON ---
+let currentLevelName = "level1";
 let level = Tiled.loadJSON("assets/tiles/level1.json");
 let ts    = Tiled.tilesetInfo(level, "tiles");
 let fg    = Tiled.findLayer(level, "foregroundLayer");
@@ -113,6 +114,7 @@ function getPlayerVulnerable() {
 }
 
 function loadLevel(levelName) {
+  currentLevelName = levelName;
   const levelPath = `assets/tiles/${levelName}.json`;
   level = Tiled.loadJSON(levelPath);
   ts = Tiled.tilesetInfo(level, "tiles");
@@ -136,6 +138,15 @@ function loadLevel(levelName) {
 }
 
 function handlePlayerPortalOverlap(player, portal) {
+  if (portal.name === 'exit' && currentLevelName === 'level1') {
+    loadLevel('level4-2');
+    player.x = 12;
+    player.y = 44;
+    player.vx = 0;
+    player.vy = 0;
+    return;
+  }
+
   const pad = Inp.poll();
   if (
     (pad.down && portal.destination.dir === "down") ||
