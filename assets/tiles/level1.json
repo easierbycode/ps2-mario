@@ -656,6 +656,12 @@
           "height": 5,
           "id": 249,
           "name": "platformMovingUpAndDown",
+          "properties": {
+            "distance": 80
+          },
+          "propertytypes": {
+            "distance": "int"
+          },
           "rotation": 0,
           "type": "platformMovingUpAndDown",
           "visible": true,
@@ -667,6 +673,12 @@
           "height": 5,
           "id": 251,
           "name": "platformMovingLeftAndRight",
+          "properties": {
+            "distance": 50
+          },
+          "propertytypes": {
+            "distance": "int"
+          },
           "rotation": 0,
           "type": "platformMovingLeftAndRight",
           "visible": true,
