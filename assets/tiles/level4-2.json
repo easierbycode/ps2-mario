@@ -6408,7 +6408,7 @@
       ],
       "height": 16,
       "id": 1,
-      "name": "layer",
+      "name": "foregroundLayer",
       "opacity": 1,
       "type": "tilelayer",
       "visible": true,
