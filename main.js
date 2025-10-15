@@ -1,6 +1,7 @@
 import * as Tiled from "lib/tiled.js";
 import * as Phys  from "lib/physics.js";
 import * as Inp   from "lib/input.js";
+import { Platform } from "lib/platform.js";
 import { handleAnimations } from "lib/mario_anim_logic.js";
 import { createMarioAnimationsFromSheet } from "lib/mario_animations.js";
 import * as ObjAnims from "lib/object_animations.js";
@@ -401,6 +402,10 @@ function loadObjectsFromTilemap() {
           },
         });
         break;
+      case 'platformMovingUpAndDown':
+      case 'platformMovingLeftAndRight':
+        platforms.push(new Platform(x, y, object.width, object.height, object.type, object.properties?.distance));
+        break;
     }
   });
 
@@ -518,7 +523,7 @@ function updateEnemies() {
 
 function updatePlatforms() {
   platforms.forEach(platform => {
-    // Platforms logic here
+    platform.update();
   });
 }
 
@@ -667,6 +672,21 @@ function checkCollisions() {
         player.y < portal.y + portal.h &&
         player.y + player.h > portal.y) {
       handlePlayerPortalOverlap(player, portal);
+    }
+  });
+
+  // Player vs Platforms
+  platforms.forEach(platform => {
+    if (player.x < platform.x + platform.w &&
+        player.x + player.w > platform.x &&
+        player.y + player.h > platform.y &&
+        player.y + player.h < platform.y + platform.h + 4 &&
+        player.vy >= 0) {
+      player.y = platform.y - player.h;
+      player.vy = 0;
+      player.grounded = true;
+      player.x += platform.vx;
+      player.y += platform.vy;
     }
   });
 }
