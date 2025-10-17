@@ -12,6 +12,13 @@ Screen.setVSync(true); // black screen if false
 // ---- Load assets ----
 const tileset = new Image("assets/tiles/smb_tiles.png");
 tileset.filter = NEAREST; // crisp pixel art
+const font = new Font("assets/superMarioLand.fnt");
+
+// ---- HUD ----
+let score = 0;
+let coins = 0;
+let time = 400;
+let lastTime = 0;
 
 // --- Load map & tileset based on your JSON ---
 let currentLevelName = "level1";
@@ -242,6 +249,11 @@ function handlePlayerCollectiblesOverlap(_player, _collectible) {
       _player.growMario();
       break;
     case "star":
+      break;
+    case "coin":
+    case "rotatingCoin":
+      coins++;
+      score += 200;
       break;
     default:
       break;
@@ -840,4 +852,30 @@ Screen.display(() => {
     const dy = snapToPixel(drawY_p, SCALE) - HALF_TEXEL_BIAS;
     platform.sprite.draw(dx, dy, false, SCALE);
   });
+
+  // ---- Update HUD ----
+  const now = Date.now();
+  if (lastTime === 0) {
+    lastTime = now;
+  }
+  const dt = now - lastTime;
+  lastTime = now;
+
+  if (time > 0) {
+    time -= dt / 1000;
+  }
+
+  // ---- Draw HUD ----
+  font.drawText("MARIO", 24, 8, 1);
+  font.drawText(String(score).padStart(6, "0"), 24, 16, 1);
+
+  font.drawText("COINS", 96, 8, 1);
+  font.drawText(String(coins).padStart(2, "0"), 104, 16, 1);
+
+  font.drawText("WORLD", 168, 8, 1);
+  const levelNum = currentLevelName.replace("level", "");
+  font.drawText(levelNum, 176, 16, 1);
+
+  font.drawText("TIME", 240, 8, 1);
+  font.drawText(String(Math.floor(time)).padStart(3, "0"), 248, 16, 1);
 });
