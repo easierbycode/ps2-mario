@@ -255,11 +255,9 @@ function handlePlayerCollectiblesOverlap(_player, _collectible) {
       break;
     case "star":
       break;
-    case "coin":
     case "coin2":
-    case "rotatingCoin":
       coins++;
-      score += 200;
+      score += 100;
       break;
     default:
       break;
@@ -312,6 +310,8 @@ function updateCollectibles() {
 // Load objects from tilemap
 function loadObjectsFromTilemap() {
   if (!obj || !obj.objects) return;
+
+  let screenHeight = Screen.getMode().height;
 
   obj.objects.forEach(object => {
     // Convert Tiled coordinates (bottom-left origin) to top-left
@@ -421,6 +421,8 @@ function loadObjectsFromTilemap() {
         });
         break;
       case 'platformMovingUpAndDown':
+        platforms.push(new Platform(x, y, object.width, object.height, object.type, object.properties?.distance));
+        break;
       case 'platformMovingLeftAndRight':
         platforms.push(new Platform(x, y, object.width, object.height, object.type, object.properties?.distance));
         break;
@@ -605,7 +607,7 @@ function checkCollisions() {
             if (box.content === 'coin' || box.content === 'rotatingCoin') {
 
               coins++;
-              score += 200;
+              score += 100;
 
               const type =
                 box.content === 'rotatingCoin' ? 'rotatingCoin' : 'coin';
