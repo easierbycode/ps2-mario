@@ -1,6 +1,6 @@
 import * as Tiled from "lib/tiled.js";
-import * as Phys  from "lib/physics.js";
-import * as Inp   from "lib/input.js";
+import * as Phys from "lib/physics.js";
+import * as Inp from "lib/input.js";
 import { Platform } from "lib/platform.js";
 import { handleAnimations } from "lib/mario_anim_logic.js";
 import { createMarioAnimationsFromSheet } from "lib/mario_animations.js";
@@ -12,7 +12,7 @@ Screen.setVSync(true); // black screen if false
 // ---- Load assets ----
 const tileset = new Image("assets/tiles/smb_tiles.png");
 tileset.filter = NEAREST; // crisp pixel art
-const font = new Font("assets/superMarioLand.fnt");
+const font = new Font("assets/fonts/mania.ttf");
 
 // ---- HUD ----
 let score = 0;
@@ -20,13 +20,18 @@ let coins = 0;
 let time = 400;
 let lastTime = 0;
 
+// ---- HUD Spacing ----
+let coinsNumTxtX = Screen.getMode().width - (font.getTextSize("COINS000").width + 8);
+let coinsNumX = coinsNumTxtX + font.getTextSize("COINS").width + 8;
+let scoreNumTxtX = font.getTextSize("WORLD").width + 8;
+
 // --- Load map & tileset based on your JSON ---
 let currentLevelName = "level1";
 let level = Tiled.loadJSON("assets/tiles/level1.json");
-let ts    = Tiled.tilesetInfo(level, "tiles");
-let fg    = Tiled.findLayer(level, "foregroundLayer");
-let bg    = Tiled.findLayer(level, "backgroundLayer");
-let obj   = Tiled.findLayer(level, "objects");
+let ts = Tiled.tilesetInfo(level, "tiles");
+let fg = Tiled.findLayer(level, "foregroundLayer");
+let bg = Tiled.findLayer(level, "backgroundLayer");
+let obj = Tiled.findLayer(level, "objects");
 
 // Decode base64 tile data into arrays of gids
 let fgData = Tiled.decodeBase64Layer(level, fg);
@@ -39,8 +44,8 @@ let collGrid = Tiled.collisionGridFromProperties(level, fg, ts);
 const spawn = Tiled.findPlayerSpawn(obj) || { x: 12, y: 44, w: 8, h: 14 };
 
 // ---- World constants (tune as needed) ----
-const TILE  = ts.tileWidth;   // (8 for your map)
-const GRAV  = 0.35;
+const TILE = ts.tileWidth;   // (8 for your map)
+const GRAV = 0.35;
 const SPEED = 1.2;
 const JUMP_V = -6.0;
 
@@ -251,6 +256,7 @@ function handlePlayerCollectiblesOverlap(_player, _collectible) {
     case "star":
       break;
     case "coin":
+    case "coin2":
     case "rotatingCoin":
       coins++;
       score += 200;
@@ -312,7 +318,7 @@ function loadObjectsFromTilemap() {
     const x = object.x;
     const y = object.y - (object.height || 0);
 
-    switch(object.type) {
+    switch (object.type) {
       case 'goomba':
         enemies.push({
           type: 'goomba',
@@ -450,7 +456,7 @@ function loadObjectsFromTilemap() {
   }
 }
 
- // Initialize objects once
+// Initialize objects once
 loadObjectsFromTilemap();
 
 // ---------- helpers: integer scale + half-texel and pixel snapping ----------
@@ -489,7 +495,7 @@ function updateEnemies() {
 
     // Ground collision
     const bottomY = Math.floor((enemy.y + enemy.h) / TILE);
-    const midX = Math.floor((enemy.x + enemy.w/2) / TILE);
+    const midX = Math.floor((enemy.x + enemy.w / 2) / TILE);
 
     if (collGrid.data && bottomY < collGrid.h) {
       const groundTile = collGrid.data[bottomY * collGrid.w + midX];
@@ -502,7 +508,7 @@ function updateEnemies() {
     // Wall collision and edge detection
     const leftX = Math.floor((enemy.x + enemy.vx) / TILE);
     const rightX = Math.floor((enemy.x + enemy.w + enemy.vx) / TILE);
-    const centerY = Math.floor((enemy.y + enemy.h/2) / TILE);
+    const centerY = Math.floor((enemy.y + enemy.h / 2) / TILE);
     const feetY = Math.floor((enemy.y + enemy.h + 1) / TILE);
 
     // Check for walls at enemy's center height
@@ -545,9 +551,9 @@ function checkCollisions() {
     if (!enemy.alive || !enemy.activated) return;
 
     if (player.x < enemy.x + enemy.w &&
-        player.x + player.w > enemy.x &&
-        player.y < enemy.y + enemy.h &&
-        player.y + player.h > enemy.y) {
+      player.x + player.w > enemy.x &&
+      player.y < enemy.y + enemy.h &&
+      player.y + player.h > enemy.y) {
 
       // Check if player is stomping (falling down and feet above enemy head)
       if (player.vy > 0 && player.y + player.h - enemy.y < 4) {
@@ -566,9 +572,9 @@ function checkCollisions() {
   // Player vs Boxes - improved collision handling
   boxes.forEach(box => {
     if (player.x < box.x + box.w &&
-        player.x + player.w > box.x &&
-        player.y < box.y + box.h &&
-        player.y + player.h > box.y) {
+      player.x + player.w > box.x &&
+      player.y < box.y + box.h &&
+      player.y + player.h > box.y) {
 
       const overlapX = Math.min(player.x + player.w, box.x + box.w) - Math.max(player.x, box.x);
       const overlapY = Math.min(player.y + player.h, box.y + box.h) - Math.max(player.y, box.y);
@@ -597,6 +603,10 @@ function checkCollisions() {
             box.active = false;
 
             if (box.content === 'coin' || box.content === 'rotatingCoin') {
+
+              coins++;
+              score += 200;
+
               const type =
                 box.content === 'rotatingCoin' ? 'rotatingCoin' : 'coin';
               collectibles.push(
@@ -634,9 +644,9 @@ function checkCollisions() {
     if (brick.destroyed) return;
 
     if (player.x < brick.x + brick.w &&
-        player.x + player.w > brick.x &&
-        player.y < brick.y + brick.h &&
-        player.y + player.h > brick.y) {
+      player.x + player.w > brick.x &&
+      player.y < brick.y + brick.h &&
+      player.y + player.h > brick.y) {
 
       // Check if hitting from below
       if (player.vy < 0 && player.y > brick.y + brick.h - 4) {
@@ -670,9 +680,9 @@ function checkCollisions() {
     if (item._collected) return;
 
     if (player.x < item.x + item.w &&
-        player.x + player.w > item.x &&
-        player.y < item.y + item.h &&
-        player.y + player.h > item.y) {
+      player.x + player.w > item.x &&
+      player.y < item.y + item.h &&
+      player.y + player.h > item.y) {
       handlePlayerCollectiblesOverlap(player, item);
     }
   });
@@ -680,9 +690,9 @@ function checkCollisions() {
   // Player vs Portals
   portals.forEach(portal => {
     if (player.x < portal.x + portal.w &&
-        player.x + player.w > portal.x &&
-        player.y < portal.y + portal.h &&
-        player.y + player.h > portal.y) {
+      player.x + player.w > portal.x &&
+      player.y < portal.y + portal.h &&
+      player.y + player.h > portal.y) {
       handlePlayerPortalOverlap(player, portal);
     }
   });
@@ -690,10 +700,10 @@ function checkCollisions() {
   // Player vs Platforms
   platforms.forEach(platform => {
     if (player.x < platform.x + platform.w &&
-        player.x + player.w > platform.x &&
-        player.y + player.h > platform.y &&
-        player.y + player.h < platform.y + platform.h + 4 &&
-        player.vy >= 0) {
+      player.x + player.w > platform.x &&
+      player.y + player.h > platform.y &&
+      player.y + player.h < platform.y + platform.h + 4 &&
+      player.vy >= 0) {
       player.y = platform.y - player.h;
       player.vy = 0;
       player.grounded = true;
@@ -839,8 +849,8 @@ Screen.display(() => {
     } else {
       const color = Color.new(255, 215, 0, 128);
       Draw.rect(drawX_c * SCALE, drawY_c * SCALE,
-                item.w * SCALE, item.h * SCALE,
-                color);
+        item.w * SCALE, item.h * SCALE,
+        color);
     }
   });
 
@@ -866,16 +876,16 @@ Screen.display(() => {
   }
 
   // ---- Draw HUD ----
-  font.drawText("MARIO", 24, 8, 1);
-  font.drawText(String(score).padStart(6, "0"), 24, 16, 1);
-
-  font.drawText("COINS", 96, 8, 1);
-  font.drawText(String(coins).padStart(2, "0"), 104, 16, 1);
-
-  font.drawText("WORLD", 168, 8, 1);
+  font.print(0, 0, "WORLD");
   const levelNum = currentLevelName.replace("level", "");
-  font.drawText(levelNum, 176, 16, 1);
+  font.print(scoreNumTxtX, 0, levelNum);
 
-  font.drawText("TIME", 240, 8, 1);
-  font.drawText(String(Math.floor(time)).padStart(3, "0"), 248, 16, 1);
+  font.print(0, 24, "MARIO");
+  font.print(scoreNumTxtX, 24, String(score).padStart(6, "0"));
+
+  font.print(coinsNumTxtX, 0, "TIME");
+  font.print(coinsNumX, 0, String(Math.floor(time)).padStart(3, "0"));
+
+  font.print(coinsNumTxtX, 24, "COINS");
+  font.print(coinsNumX, 24, String(coins).padStart(2, "0"));
 });
