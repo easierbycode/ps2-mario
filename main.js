@@ -652,33 +652,45 @@ function checkCollisions() {
     if (brick.destroyed) return;
 
     if (player.x < brick.x + brick.w &&
-      player.x + player.w > brick.x &&
-      player.y < brick.y + brick.h &&
-      player.y + player.h > brick.y) {
+        player.x + player.w > brick.x &&
+        player.y < brick.y + brick.h &&
+        player.y + player.h > brick.y) {
 
-      // Check if hitting from below
-      if (player.vy < 0 && player.y > brick.y + brick.h - 4) {
-        // Hit brick from below
-        player.vy = Math.abs(player.vy) * 0.2;
-        brick.hits--;
-        if (brick.hits <= 0) {
-          brick.destroyed = true;
-        }
-      }
-      // Provide top collision
-      else if (player.vy > 0 && player.y < brick.y) {
-        player.y = brick.y - player.h;
-        player.vy = 0;
-        player.grounded = true;
-      }
-      // Side collisions
-      else if (player.vx !== 0) {
+      // Use overlap method (same as boxes) to determine collision axis.
+      const overlapX = Math.min(player.x + player.w, brick.x + brick.w) - Math.max(player.x, brick.x);
+      const overlapY = Math.min(player.y + player.h, brick.y + brick.h) - Math.max(player.y, brick.y);
+
+      if (overlapX < overlapY) {
+        // Horizontal collision (left or right side)
         if (player.x < brick.x) {
           player.x = brick.x - player.w;
         } else {
           player.x = brick.x + brick.w;
         }
         player.vx = 0;
+      } else {
+        // Vertical collision (top or bottom)
+        if (player.y < brick.y) {
+          // Player is above brick - landing on top
+          player.y = brick.y - player.h;
+          player.vy = 0;
+          player.grounded = true;
+        } else {
+          // Player is below brick - hitting from underneath
+          // Only treat as a head-hit if player is moving up (vy < 0).
+          if (player.vy < 0) {
+            // Apply same "head hit" behavior as before (small bounce and damage bricks)
+            player.vy = Math.abs(player.vy) * 0.2;
+            brick.hits--;
+            if (brick.hits <= 0) {
+              brick.destroyed = true;
+            }
+          } else {
+            // Fallback: push player below the brick
+            player.y = brick.y + brick.h;
+            player.vy = Math.abs(player.vy) * 0.2;
+          }
+        }
       }
     }
   });
