@@ -10,7 +10,7 @@ import * as ObjAnims from "lib/object_animations.js";
 Screen.setVSync(true); // black screen if false
 
 // ---- Load assets ----
-const tileset = new Image("assets/tiles/smb_tiles.png");
+let tileset = new Image("assets/tiles/smb_tiles.png");
 tileset.filter = NEAREST; // crisp pixel art
 const font = new Font("assets/fonts/mania.ttf");
 
@@ -127,6 +127,12 @@ function getPlayerVulnerable() {
 }
 
 function loadLevel(levelName) {
+
+  if (levelName === "level4-2") {
+    tileset = new Image("assets/tiles/tiles.png");
+    tileset.filter = NEAREST; // crisp pixel art
+  }
+
   currentLevelName = levelName;
   const levelPath = `assets/tiles/${levelName}.json`;
   level = Tiled.loadJSON(levelPath);
@@ -836,7 +842,13 @@ Screen.display(() => {
   collectibles.forEach(item => {
     if (item._collected) return;
     const drawX_c = item.x - camX;
-    const drawY_c = item.y - camY;
+    let drawY_c = item.y - camY;
+
+    // DRJ::HACK: Adjust coin drawY
+    //  long term fix drawY of all objects
+    if (item.type === 'coin2') {
+      drawY_c += TILE;
+    }
 
     const dx = snapToPixel(drawX_c, SCALE) - HALF_TEXEL_BIAS;
     const dy = snapToPixel(drawY_c, SCALE) - HALF_TEXEL_BIAS;
