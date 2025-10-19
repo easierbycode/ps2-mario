@@ -46,7 +46,7 @@ const spawn = Tiled.findPlayerSpawn(obj) || { x: 12, y: 44, w: 8, h: 14 };
 // ---- World constants (tune as needed) ----
 const TILE = ts.tileWidth;   // (8 for your map)
 const GRAV = 0.35;
-const SPEED = 1.2;
+let SPEED = 1.2;
 const JUMP_V = -6.0;
 
 const SMALL_MARIO_WIDTH = spawn.w || 8;
@@ -745,6 +745,7 @@ Screen.display(() => {
   // Input
   const pad = Inp.poll();
   if (!player.dead) {
+    if (pad.run) { SPEED = 2.4; } else if (pad.boost) { SPEED = 9.8; } else { SPEED = 1.2; }
     player.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
     if (pad.jumpPressed && player.grounded) player.vy = JUMP_V;
     player.ducking = (pad.down && player.grounded && player.size === "big");
