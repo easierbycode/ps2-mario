@@ -760,7 +760,17 @@ Screen.display(() => {
   }
 
   if (gameState === "leveleditor") {
-    levelEditor_create(tileset, ts, level, fgData, font);
+    const nextState = levelEditor_create(tileset, ts, level, fgData, font);
+    if (nextState === "load_new_level") {
+      loadLevel('new_level');
+      player.x = spawn.x;
+      player.y = spawn.y - SMALL_MARIO_HEIGHT;
+      player.vx = 0;
+      player.vy = 0;
+      gameState = "game";
+    } else {
+      gameState = nextState;
+    }
     return;
   }
 
