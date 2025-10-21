@@ -2,6 +2,7 @@ import * as Tiled from "lib/tiled.js";
 import * as Phys from "lib/physics.js";
 import * as Inp from "lib/input.js";
 import { Platform } from "lib/platform.js";
+import { levelEditor_create } from "lib/leveleditor.js";
 import { handleAnimations } from "lib/mario_anim_logic.js";
 import { createMarioAnimationsFromSheet } from "lib/mario_animations.js";
 import * as ObjAnims from "lib/object_animations.js";
@@ -9,8 +10,15 @@ import * as ObjAnims from "lib/object_animations.js";
 // ---- Setup screen ----
 Screen.setVSync(true); // black screen if false
 
+export function saveLevel(filename, data) {
+  const path = `assets/tiles/${filename}`;
+  const file = std.open(path, "w");
+  file.puts(data);
+  file.close();
+}
+
 // ---- Load assets ----
-let tileset = new Image("assets/tiles/smb_tiles.png");
+let tileset = new Image("assets/tiles/tiles.png");
 tileset.filter = NEAREST; // crisp pixel art
 const font = new Font("assets/fonts/mania.ttf");
 
@@ -734,6 +742,8 @@ function checkCollisions() {
 }
 
 // ---- Main loop ----
+let gameState = "game";
+
 Screen.display(() => {
   // Recompute scale each frame (handles mode changes)
   const SCALE = getIntScaleToFillVertically();
@@ -744,6 +754,16 @@ Screen.display(() => {
 
   // Input
   const pad = Inp.poll();
+
+  if (pad.down && pad.select) {
+    gameState = "leveleditor";
+  }
+
+  if (gameState === "leveleditor") {
+    levelEditor_create(tileset, ts, level, fgData, font);
+    return;
+  }
+
   if (!player.dead) {
     if (pad.run) { SPEED = 2.4; } else if (pad.boost) { SPEED = 9.8; } else { SPEED = 1.2; }
     player.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
