@@ -18,8 +18,7 @@ export function saveLevel(filename, data) {
 }
 
 // ---- Load assets ----
-let tileset = new Image("assets/tiles/tiles.png");
-tileset.filter = NEAREST; // crisp pixel art
+let tileset;
 const font = new Font("assets/fonts/mania.ttf");
 
 // ---- HUD ----
@@ -34,25 +33,21 @@ let coinsNumX = coinsNumTxtX + font.getTextSize("COINS").width + 8;
 let scoreNumTxtX = font.getTextSize("WORLD").width + 8;
 
 // --- Load map & tileset based on your JSON ---
-let currentLevelName = "level1";
-let level = Tiled.loadJSON("assets/tiles/level1.json");
-let ts = Tiled.tilesetInfo(level, "tiles");
-let fg = Tiled.findLayer(level, "foregroundLayer");
-let bg = Tiled.findLayer(level, "backgroundLayer");
-let obj = Tiled.findLayer(level, "objects");
-
-// Decode base64 tile data into arrays of gids
-let fgData = Tiled.decodeBase64Layer(level, fg);
-let bgData = Tiled.decodeBase64Layer(level, bg);
-
-// Build collision grid from collide:true tileproperties
-let collGrid = Tiled.collisionGridFromProperties(level, fg, ts);
+let currentLevelName;
+let level;
+let ts;
+let fg;
+let bg;
+let obj;
+let fgData;
+let bgData;
+let collGrid;
 
 // Player spawn from object layer (type or name == "player")
-const spawn = Tiled.findPlayerSpawn(obj) || { x: 12, y: 44, w: 8, h: 14 };
+let spawn = Tiled.findPlayerSpawn(obj) || { x: 12, y: 44, w: 8, h: 14 };
 
 // ---- World constants (tune as needed) ----
-const TILE = ts.tileWidth;   // (8 for your map)
+let TILE = 8;
 const GRAV = 0.35;
 let SPEED = 1.2;
 const JUMP_V = -6.0;
@@ -135,15 +130,18 @@ function getPlayerVulnerable() {
 }
 
 function loadLevel(levelName) {
-
-  if (levelName === "level4-2") {
-    tileset = new Image("assets/tiles/tiles.png");
-    tileset.filter = NEAREST; // crisp pixel art
-  }
-
   currentLevelName = levelName;
   const levelPath = `assets/tiles/${levelName}.json`;
   level = Tiled.loadJSON(levelPath);
+
+  // --- Dynamically load tileset based on level data ---
+  const tilesetPath = `assets/tiles/${level.tilesets[0].image.replace(
+    "../tiles/",
+    ""
+  )}`;
+  tileset = new Image(tilesetPath);
+  tileset.filter = NEAREST;
+
   ts = Tiled.tilesetInfo(level, "tiles");
   fg = Tiled.findLayer(level, "foregroundLayer");
   bg = Tiled.findLayer(level, "backgroundLayer");
@@ -153,6 +151,8 @@ function loadLevel(levelName) {
   bgData = Tiled.decodeBase64Layer(level, bg);
 
   collGrid = Tiled.collisionGridFromProperties(level, fg, ts);
+  spawn = Tiled.findPlayerSpawn(obj) || { x: 12, y: 44, w: 8, h: 14 };
+  TILE = ts.tileWidth;
 
   enemies.length = 0;
   boxes.length = 0;
@@ -473,7 +473,7 @@ function loadObjectsFromTilemap() {
 }
 
 // Initialize objects once
-loadObjectsFromTilemap();
+loadLevel("level1");
 
 // ---------- helpers: integer scale + half-texel and pixel snapping ----------
 /**
