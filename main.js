@@ -760,19 +760,19 @@ Screen.display(() => {
   }
 
   if (gameState === "leveleditor") {
-    const nextState = levelEditor_create(tileset, ts, level, fgData, font, player);
-    if (nextState === "load_new_level") {
-      loadLevel('new_level');
-      player.x = spawn.x;
-      player.y = spawn.y - SMALL_MARIO_HEIGHT;
-      player.vx = 0;
-      player.vy = 0;
-      gameState = "game";
+    const editorResult = levelEditor_create(tileset, ts, level, fgData, font);
+    if (typeof editorResult === 'object' && editorResult.nextState === "load_new_level") {
+        loadLevel('new_level');
+        player.x = editorResult.spawnPos.x;
+        player.y = editorResult.spawnPos.y - SMALL_MARIO_HEIGHT;
+        player.vx = 0;
+        player.vy = 0;
+        gameState = "game";
     } else {
-      gameState = nextState;
+        gameState = editorResult;
     }
     return;
-  }
+}
 
   if (!player.dead) {
     if (pad.run) { SPEED = 2.4; } else if (pad.boost) { SPEED = 9.8; } else { SPEED = 1.2; }
