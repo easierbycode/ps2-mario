@@ -760,7 +760,7 @@ Screen.display(() => {
   }
 
   if (gameState === "leveleditor") {
-    const nextState = levelEditor_create(tileset, ts, level, fgData, font);
+    const nextState = levelEditor_create(tileset, ts, level, fgData, font, player);
     if (nextState === "load_new_level") {
       loadLevel('new_level');
       player.x = spawn.x;
