@@ -3,8 +3,7 @@ import * as Phys from "lib/physics.js";
 import * as Inp from "lib/input.js";
 import { Platform } from "lib/platform.js";
 import { levelEditor_create } from "lib/leveleditor.js";
-import { handleAnimations } from "lib/mario_anim_logic.js";
-import { createMarioAnimationsFromSheet } from "lib/mario_animations.js";
+import { Mario } from "objects/mario.js";
 import * as ObjAnims from "lib/object_animations.js";
 
 // ---- Setup screen ----
@@ -61,29 +60,7 @@ const BIG_MARIO_HEIGHT = SMALL_MARIO_HEIGHT + 4;
 let camX = 0, camY = 0;
 
 // ---- Player ----
-const player = {
-  x: spawn.x,
-  y: spawn.y - SMALL_MARIO_HEIGHT,
-  w: SMALL_MARIO_WIDTH,
-  h: SMALL_MARIO_HEIGHT,
-  vx: 0,
-  vy: 0,
-  grounded: false,
-  facing: 1,
-  size: "small", // "small" | "big"
-  ducking: false,
-  dead: false,
-  animName: "",
-  invulnerable: false,
-  invulnerableTimer: 0,
-  smallWidth: SMALL_MARIO_WIDTH,
-  smallHeight: SMALL_MARIO_HEIGHT,
-  bigWidth: BIG_MARIO_WIDTH,
-  bigHeight: BIG_MARIO_HEIGHT
-};
-
-// ---- Mario animations from spritesheet (96x48 = 6x3 grid of 16x16) ----
-const ANIMS = createMarioAnimationsFromSheet();
+const player = new Mario(spawn);
 
 // ---- Object animations ----
 const GOOMBA_ANIMS = ObjAnims.createGoombaAnimations();
@@ -100,34 +77,6 @@ const bricks = [];
 const collectibles = [];
 const platforms = [];
 const portals = [];
-
-function makePlayerInvulnerable(frames = 120) {
-  player.invulnerable = true;
-  player.invulnerableTimer = frames;
-}
-
-function growMario() {
-  if (player.size === "big") return;
-  const deltaHeight = player.bigHeight - player.h;
-  player.size = "big";
-  player.w = player.bigWidth;
-  player.h = player.bigHeight;
-  player.y -= deltaHeight;
-  player.ducking = false;
-}
-
-function shrinkMario() {
-  if (player.size === "small") return;
-  const deltaHeight = player.h - player.smallHeight;
-  player.size = "small";
-  player.w = player.smallWidth;
-  player.h = player.smallHeight;
-  player.y += deltaHeight;
-}
-
-function getPlayerVulnerable() {
-  return !player.invulnerable;
-}
 
 function loadLevel(levelName) {
   currentLevelName = levelName;
@@ -188,27 +137,12 @@ function handlePlayerPortalOverlap(player, portal) {
 }
 
 function playerGotHit() {
-  if (player.dead || !getPlayerVulnerable()) return;
-  if (player.size === "big") {
-    shrinkMario();
-    makePlayerInvulnerable(120);
-  } else {
-    player.dead = true;
-    player.vx = 0;
-    player.vy = -4;
-    player.animName = "dead";
-  }
+  player.gotHit();
 }
 
 function bounceUpAfterHitEnemyOnHead() {
-  player.vy = JUMP_V * 0.5;
+  player.bounceUpAfterHitEnemyOnHead();
 }
-
-player.growMario = growMario;
-player.shrinkMario = shrinkMario;
-player.getVulnerable = getPlayerVulnerable;
-player.gotHit = playerGotHit;
-player.bounceUpAfterHitEnemyOnHead = bounceUpAfterHitEnemyOnHead;
 
 function createCollectible(props = {}) {
   const item = {
@@ -256,7 +190,6 @@ function createMushroomCollectible(x, y, options = {}) {
 }
 
 function handlePlayerEnemyOverlap(_player, _enemy) {
-  if (!_player.getVulnerable()) return;
   _player.gotHit();
 }
 
@@ -279,16 +212,6 @@ function handlePlayerCollectiblesOverlap(_player, _collectible) {
   _collectible.collected();
 }
 
-function updatePlayerState() {
-  if (player.invulnerable) {
-    if (player.invulnerableTimer > 0) {
-      player.invulnerableTimer--;
-    } else {
-      player.invulnerable = false;
-      player.invulnerableTimer = 0;
-    }
-  }
-}
 
 function updateCollectibles() {
   collectibles.forEach((item) => {
@@ -774,22 +697,7 @@ Screen.display(() => {
     return;
 }
 
-  if (!player.dead) {
-    if (pad.run) { SPEED = 2.4; } else if (pad.boost) { SPEED = 9.8; } else { SPEED = 1.2; }
-    player.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
-    if (pad.jumpPressed && player.grounded) player.vy = JUMP_V;
-    player.ducking = (pad.down && player.grounded && player.size === "big");
-
-    // Physics (in logical units)
-    player.vy += GRAV;
-    Phys.step(player, collGrid, TILE);
-  } else {
-    // When dead, only apply death jump physics
-    player.vy += GRAV * 0.5;
-    player.y += player.vy;
-  }
-
-  updatePlayerState();
+  player.update(pad, collGrid, TILE);
 
   // Update entities and check collisions
   updateEnemies();
@@ -812,31 +720,7 @@ Screen.display(() => {
   Tiled.drawLayerData(fg, fgData, tileset, ts,
     camX - HALF_TEXEL_BIAS, camY - HALF_TEXEL_BIAS, SCALE);
 
-  // ---- Animation selection ----
-  let currentAnim, rect, flipH;
-
-  if (player.dead) {
-    // Use death animation frame (small mario frame 4 is the jump/dead frame)
-    currentAnim = ANIMS.smallJump || ANIMS.smallWalk;
-    currentAnim.frame = 0; // Force to first frame
-    rect = currentAnim.currentRect;
-    flipH = player.facing < 0;
-  } else {
-    const animResult = handleAnimations(player, ANIMS);
-    currentAnim = ANIMS[animResult.name];
-    rect = currentAnim.currentRect;
-    flipH = animResult.flipH;
-  }
-
-  // Feet-align sprite to collision box in logical units.
-  const drawX_logical = player.x - camX + (player.w - rect.w) * 0.5;
-  const drawY_logical = player.y - camY - (rect.h - player.h);
-
-  const drawX = snapToPixel(drawX_logical, SCALE) - HALF_TEXEL_BIAS;
-  const drawY = snapToPixel(drawY_logical, SCALE) - HALF_TEXEL_BIAS;
-
-  // Draw scaled to fill vertical screen
-  currentAnim.draw(drawX, drawY, flipH, SCALE);
+  player.draw(camX, camY, SCALE, snapToPixel, HALF_TEXEL_BIAS);
 
   // Draw enemies
   enemies.forEach(enemy => {
