@@ -1,4 +1,4 @@
-import Inp from 'lib/input.js';
+import * as Inp from 'lib/input.js';
 
 export default class TitleScreen {
   constructor(screenManager) {

@@ -1,10 +1,10 @@
-import * as Tiled from "../lib/tiled.js";
-import * as Phys from "../lib/physics.js";
-import * as Inp from "../lib/input.js";
-import { Platform } from "../lib/platform.js";
-import { levelEditor_create } from "../lib/leveleditor.js";
-import { Mario } from "../objects/mario.js";
-import * as ObjAnims from "../lib/object_animations.js";
+import * as Tiled from "lib/tiled.js";
+import * as Phys from "lib/physics.js";
+import * as Inp from "lib/input.js";
+import { Platform } from "lib/platform.js";
+import { levelEditor_create } from "lib/leveleditor.js";
+import { Mario } from "objects/mario.js";
+import * as ObjAnims from "lib/object_animations.js";
 
 export default class GameScreen {
   constructor(screenManager) {
