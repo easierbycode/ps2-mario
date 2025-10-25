@@ -25,6 +25,14 @@ export default class GameScreen {
     )}`;
     const tileset = new Image(tilesetPath);
     tileset.filter = NEAREST;
+
+    const animSheets = ObjAnims.loadAllAnimationSheets();
+    this.GOOMBA_ANIMS = ObjAnims.createGoombaAnimations(animSheets.goomba);
+    this.COIN_ANIMS = ObjAnims.createCoinAnimations(animSheets.coin, animSheets.rotatingCoin);
+    this.BOX_SPRITES = ObjAnims.createBoxSprite(animSheets.box);
+    this.BRICK_SPRITE = ObjAnims.createBrickSprite(animSheets.brick);
+    this.MUSHROOM_SPRITE = ObjAnims.createMushroomSprite(animSheets.mushroom);
+
     this.loadLevel("level1", tileset);
   }
 
@@ -70,11 +78,11 @@ export default class GameScreen {
     this.player = null;
 
     // ---- Object animations ----
-    this.GOOMBA_ANIMS = ObjAnims.createGoombaAnimations();
-    this.COIN_ANIMS = ObjAnims.createCoinAnimations();
-    this.BOX_SPRITES = ObjAnims.createBoxSprite();
-    this.BRICK_SPRITE = ObjAnims.createBrickSprite();
-    this.MUSHROOM_SPRITE = ObjAnims.createMushroomSprite();
+    this.GOOMBA_ANIMS = null;
+    this.COIN_ANIMS = null;
+    this.BOX_SPRITES = null;
+    this.BRICK_SPRITE = null;
+    this.MUSHROOM_SPRITE = null;
 
     // ---- Game Objects ----
     this.enemies = [];
