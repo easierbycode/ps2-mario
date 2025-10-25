@@ -13,13 +13,25 @@ export default class GameScreen {
 
   onEnter() {
     this.init();
-    this.loadLevel("level1");
+    this.font = new Font("assets/fonts/mania.ttf");
+    this.coinsNumTxtX = Screen.getMode().width - (this.font.getTextSize("COINS000").width + 8);
+    this.coinsNumX = this.coinsNumTxtX + this.font.getTextSize("COINS").width + 8;
+    this.scoreNumTxtX = this.font.getTextSize("WORLD").width + 8;
+
+    const levelData = Tiled.loadJSON(`assets/tiles/level1.json`);
+    const tilesetPath = `assets/tiles/${levelData.tilesets[0].image.replace(
+      "../tiles/",
+      ""
+    )}`;
+    const tileset = new Image(tilesetPath);
+    tileset.filter = NEAREST;
+    this.loadLevel("level1", tileset);
   }
 
   init() {
     // ---- Load assets ----
     this.tileset = null;
-    this.font = new Font("assets/fonts/mania.ttf");
+    this.font = null;
 
     // ---- HUD ----
     this.score = 0;
@@ -28,9 +40,9 @@ export default class GameScreen {
     this.lastTime = 0;
 
     // ---- HUD Spacing ----
-    this.coinsNumTxtX = Screen.getMode().width - (this.font.getTextSize("COINS000").width + 8);
-    this.coinsNumX = this.coinsNumTxtX + this.font.getTextSize("COINS").width + 8;
-    this.scoreNumTxtX = this.font.getTextSize("WORLD").width + 8;
+    this.coinsNumTxtX = 0;
+    this.coinsNumX = 0;
+    this.scoreNumTxtX = 0;
 
     // --- Map & tileset ---
     this.currentLevelName = null;
@@ -75,17 +87,11 @@ export default class GameScreen {
     this.gameState = "game";
   }
 
-  loadLevel(levelName) {
+  loadLevel(levelName, tileset) {
     this.currentLevelName = levelName;
     const levelPath = `assets/tiles/${levelName}.json`;
     this.level = Tiled.loadJSON(levelPath);
-
-    const tilesetPath = `assets/tiles/${this.level.tilesets[0].image.replace(
-      "../tiles/",
-      ""
-    )}`;
-    this.tileset = new Image(tilesetPath);
-    this.tileset.filter = NEAREST;
+    this.tileset = tileset;
 
     this.ts = Tiled.tilesetInfo(this.level, "tiles");
     this.fg = Tiled.findLayer(this.level, "foregroundLayer");
@@ -127,23 +133,29 @@ export default class GameScreen {
   }
 
   handlePlayerPortalOverlap(player, portal) {
+    let nextLevelName = null;
     if (portal.name === 'exit' && this.currentLevelName === 'level1') {
-      this.loadLevel('level4-2');
+      nextLevelName = 'level4-2';
       player.x = 12;
       player.y = 44;
-      player.vx = 0;
-      player.vy = 0;
-      return;
+    } else {
+      const pad = Inp.poll();
+      if (
+        (pad.down && portal.destination.dir === "down") ||
+        (pad.right && portal.destination.dir === "right")
+      ) {
+        nextLevelName = portal.destination.level;
+        player.x = portal.destination.x;
+        player.y = portal.destination.y;
+      }
     }
 
-    const pad = Inp.poll();
-    if (
-      (pad.down && portal.destination.dir === "down") ||
-      (pad.right && portal.destination.dir === "right")
-    ) {
-      this.loadLevel(portal.destination.level);
-      player.x = portal.destination.x;
-      player.y = portal.destination.y;
+    if (nextLevelName) {
+      const levelData = Tiled.loadJSON(`assets/tiles/${nextLevelName}.json`);
+      const tilesetPath = `assets/tiles/${levelData.tilesets[0].image.replace("../tiles/", "")}`;
+      const tileset = new Image(tilesetPath);
+      tileset.filter = NEAREST;
+      this.loadLevel(nextLevelName, tileset);
       player.vx = 0;
       player.vy = 0;
     }
@@ -642,7 +654,11 @@ export default class GameScreen {
     if (this.gameState === "leveleditor") {
         const editorResult = levelEditor_create(this.tileset, this.ts, this.level, this.fgData, this.font, this.player, (filename, data) => this.saveLevel(filename, data));
         if (typeof editorResult === 'object' && editorResult.nextState === "load_new_level") {
-            this.loadLevel('new_level');
+            const levelData = Tiled.loadJSON(`assets/tiles/new_level.json`);
+            const tilesetPath = `assets/tiles/${levelData.tilesets[0].image.replace("../tiles/", "")}`;
+            const tileset = new Image(tilesetPath);
+            tileset.filter = NEAREST;
+            this.loadLevel('new_level', tileset);
             this.player.x = editorResult.spawnPos.x;
             this.player.y = editorResult.spawnPos.y - this.player.h;
             this.player.vx = 0;
