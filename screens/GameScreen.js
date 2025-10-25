@@ -640,7 +640,7 @@ export default class GameScreen {
     }
 
     if (this.gameState === "leveleditor") {
-        const editorResult = levelEditor_create(this.tileset, this.ts, this.level, this.fgData, this.font, this.player);
+        const editorResult = levelEditor_create(this.tileset, this.ts, this.level, this.fgData, this.font, this.player, (filename, data) => this.saveLevel(filename, data));
         if (typeof editorResult === 'object' && editorResult.nextState === "load_new_level") {
             this.loadLevel('new_level');
             this.player.x = editorResult.spawnPos.x;
