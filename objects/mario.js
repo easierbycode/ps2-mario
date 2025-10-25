@@ -8,7 +8,7 @@ const GRAV = 0.35;
 const JUMP_V = -6.0;
 
 export class Mario {
-  constructor(spawn) {
+  constructor(spawn, marioSheet) {
     this.x = spawn.x;
     this.y = spawn.y - (spawn.h || 14);
     this.w = spawn.w || 8;
@@ -27,7 +27,7 @@ export class Mario {
     this.smallHeight = spawn.h || 14;
     this.bigWidth = (spawn.w || 8);
     this.bigHeight = (spawn.h || 14) + 4;
-    this.anims = createMarioAnimationsFromSheet();
+    this.anims = createMarioAnimationsFromSheet(marioSheet);
   }
 
   growMario() {

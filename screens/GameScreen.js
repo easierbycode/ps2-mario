@@ -27,6 +27,8 @@ export default class GameScreen {
     tileset.filter = NEAREST;
 
     const animSheets = ObjAnims.loadAllAnimationSheets();
+    this.marioSheet = animSheets.mario;
+    this.platformSheet = animSheets.platform;
     this.GOOMBA_ANIMS = ObjAnims.createGoombaAnimations(animSheets.goomba);
     this.COIN_ANIMS = ObjAnims.createCoinAnimations(animSheets.coin, animSheets.rotatingCoin);
     this.BOX_SPRITES = ObjAnims.createBoxSprite(animSheets.box);
@@ -114,7 +116,7 @@ export default class GameScreen {
     this.TILE = this.ts.tileWidth;
 
     if (!this.player) {
-        this.player = new Mario(this.spawn);
+        this.player = new Mario(this.spawn, this.marioSheet);
     } else {
         this.player.x = this.spawn.x;
         this.player.y = this.spawn.y;
@@ -387,10 +389,10 @@ export default class GameScreen {
           });
           break;
         case 'platformMovingUpAndDown':
-          this.platforms.push(new Platform(x, y, object.width, object.height, object.type, object.properties?.distance));
+          this.platforms.push(new Platform(x, y, object.width, object.height, object.type, object.properties?.distance, this.platformSheet));
           break;
         case 'platformMovingLeftAndRight':
-          this.platforms.push(new Platform(x, y, object.width, object.height, object.type, object.properties?.distance));
+          this.platforms.push(new Platform(x, y, object.width, object.height, object.type, object.properties?.distance, this.platformSheet));
           break;
       }
     });
