@@ -670,7 +670,7 @@ export default class GameScreen {
   }
 
   render() {
-    if (!this.player) return;
+    if (!this.player || !this.level) return;
 
     const SCALE = this.getIntScaleToFillVertically();
     const HALF_TEXEL_BIAS = 0.5 / SCALE;
