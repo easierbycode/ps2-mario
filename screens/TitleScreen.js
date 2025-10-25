@@ -3,14 +3,14 @@ import * as Inp from 'lib/input.js';
 export default class TitleScreen {
   constructor(screenManager) {
     this.screenManager = screenManager;
-    this.titleImage = new Image('assets/images/title.png');
+    this.titleImage = null;
     const screenMode = Screen.getMode();
     this.screenWidth = screenMode.width;
     this.screenHeight = screenMode.height;
   }
 
   onEnter() {
-    // Optional: Add logic when the screen becomes active
+    this.titleImage = new Image('assets/images/title.png');
   }
 
   update() {
@@ -22,6 +22,7 @@ export default class TitleScreen {
   }
 
   render() {
+    if (!this.titleImage) return;
     // Draw the title image scaled to the full screen
     this.titleImage.draw(0, 0, this.screenWidth, this.screenHeight);
   }
