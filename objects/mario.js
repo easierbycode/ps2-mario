@@ -1,7 +1,8 @@
 import * as Phys from "../lib/physics.js";
 import * as Inp from "../lib/input.js";
 import { handleAnimations } from "../lib/mario_anim_logic.js";
-import { createMarioAnimationsFromSheet } from "../lib/mario_animations.js";
+import { createMarioAnimationsFromSheet, createDKAnimationsFromSheet } from "../lib/mario_animations.js";
+import { getCharacter } from "../lib/character.js";
 
 // ---- World constants (tune as needed) ----
 const GRAV = 0.35;
@@ -27,7 +28,9 @@ export class Mario {
     this.smallHeight = spawn.h || 14;
     this.bigWidth = (spawn.w || 8);
     this.bigHeight = (spawn.h || 14) + 4;
-    this.anims = createMarioAnimationsFromSheet();
+    this.anims = getCharacter() === "dk"
+      ? createDKAnimationsFromSheet()
+      : createMarioAnimationsFromSheet();
   }
 
   growMario() {
