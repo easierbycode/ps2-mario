@@ -6,6 +6,9 @@ import { createMarioAnimationsFromSheet } from "lib/mario_animations.js";
 import * as ObjAnims from "lib/object_animations.js";
 
 // ---- Setup screen ----
+// see main.js: v4's depth test has no Z-buffer behind it and blanks every
+// other flip; this game is painter's-order 2D, so turn it off.
+if (typeof Screen.setParam === 'function') Screen.setParam(Screen.DEPTH_TEST_ENABLE, 0);
 Screen.setVSync(true); // black screen if false
 
 // ---- Load assets ----
