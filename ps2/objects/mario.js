@@ -7,6 +7,8 @@ import { getCharacter } from "../lib/character.js";
 // ---- World constants (tune as needed) ----
 const GRAV = 0.35;
 const JUMP_V = -6.0;
+const WALK_SPEED = 1.2;
+const RUN_SPEED = 2.4;
 
 export class Mario {
   constructor(spawn) {
@@ -91,12 +93,9 @@ export class Mario {
 
     // Handle input and physics
     if (!this.dead) {
-      let SPEED = 1.2;
-      if (pad.run) {
-        SPEED = 2.4;
-      } else if (pad.boost) {
-        SPEED = 9.8;
-      }
+      // run/boost/fireball all hang off B (SQUARE, the left face button), so
+      // there is a single held-B speed rather than the old two-button split
+      const SPEED = pad.run ? RUN_SPEED : WALK_SPEED;
       this.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
       if (pad.jumpPressed && this.grounded) {
         this.vy = JUMP_V;

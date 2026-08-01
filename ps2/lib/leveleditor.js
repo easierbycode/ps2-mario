@@ -31,10 +31,10 @@ function updateLevelEditorPads(pad, level, fgData, ts) {
         square_y++;
     }
 
-    if (pad.runPressed) {
+    if (pad.tilePrevPressed) {
         cur_sprite = (cur_sprite - 1 + TILES.length) % TILES.length;
     }
-    if (pad.boostPressed) {
+    if (pad.tileNextPressed) {
         cur_sprite = (cur_sprite + 1) % TILES.length;
     }
 
