@@ -90,10 +90,22 @@ static JSValue image_set(JSContext *ctx, JSValue this_val, JSValue val, int magi
 static JSValue image_draw(JSContext *ctx, JSValue this_val, int argc, JSValue *argv) {
     HostImage *im = JS_GetOpaque2(ctx, this_val, image_class_id);
     if (!im) return JS_EXCEPTION;
+    // a zero-sized Image is how AthenaEnv reports art that isn't on the disc;
+    // the game checks for it (TransitionManager) rather than being thrown at
+    if (!im->tex) return JS_UNDEFINED;
+
     double x = 0, y = 0;
     if (argc >= 2) {
         JS_ToFloat64(ctx, &x, argv[0]);
         JS_ToFloat64(ctx, &y, argv[1]);
+    }
+    // draw(x, y, w, h) overrides the destination size for this call only —
+    // the title screen blows its 160x112 sheet up to the full 640x448, and
+    // the transition tiles scale per frame
+    double dw = im->width, dh = im->height;
+    if (argc >= 4) {
+        JS_ToFloat64(ctx, &dw, argv[2]);
+        JS_ToFloat64(ctx, &dh, argv[3]);
     }
 
     double sx0 = im->startx, sx1 = im->endx;
@@ -112,7 +124,7 @@ static JSValue image_draw(JSContext *ctx, JSValue this_val, int argc, JSValue *a
         flip |= SDL_FLIP_VERTICAL;
     }
     SDL_Rect src = { (int)sx0, (int)sy0, (int)(sx1 - sx0), (int)(sy1 - sy0) };
-    SDL_FRect dst = { (float)x, (float)y, (float)im->width, (float)im->height };
+    SDL_FRect dst = { (float)x, (float)y, (float)dw, (float)dh };
 
     SDL_SetTextureScaleMode(im->tex,
                             im->filter ? SDL_ScaleModeLinear : SDL_ScaleModeNearest);
@@ -143,23 +155,25 @@ static JSValue image_ctor(JSContext *ctx, JSValue new_target, int argc, JSValue 
 
     char full[512];
     snprintf(full, sizeof(full), GAME_ROOT "%s", path);
+    // AthenaEnv answers a missing file with a zero-sized Image rather than an
+    // error, and the game treats that as "no art, skip drawing"
+    // (TransitionManager probes .width). Throwing here would escape the frame
+    // callback and take the whole app down on the first screen transition.
     SDL_Texture *tex = IMG_LoadTexture(g_renderer, full);
     if (!tex) {
-        JSValue e = JS_ThrowReferenceError(ctx, "Image load failed: %s (%s)", full,
-                                           IMG_GetError());
-        JS_FreeCString(ctx, path);
-        return e;
+        fprintf(stderr, "[image] %s not loaded (%s) — drawing nothing\n", full, IMG_GetError());
+    } else {
+        SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
     }
     JS_FreeCString(ctx, path);
-    SDL_SetTextureBlendMode(tex, SDL_BLENDMODE_BLEND);
 
     HostImage *im = calloc(1, sizeof(*im));
     if (!im) {
-        SDL_DestroyTexture(tex);
+        if (tex) SDL_DestroyTexture(tex);
         return JS_ThrowOutOfMemory(ctx);
     }
     im->tex = tex;
-    SDL_QueryTexture(tex, NULL, NULL, &im->natW, &im->natH);
+    if (tex) SDL_QueryTexture(tex, NULL, NULL, &im->natW, &im->natH);
     im->width = im->natW;
     im->height = im->natH;
     im->startx = 0;
@@ -171,7 +185,7 @@ static JSValue image_ctor(JSContext *ctx, JSValue new_target, int argc, JSValue 
 
     JSValue obj = JS_NewObjectClass(ctx, image_class_id);
     if (JS_IsException(obj)) {
-        SDL_DestroyTexture(tex);
+        if (tex) SDL_DestroyTexture(tex);
         free(im);
         return obj;
     }
