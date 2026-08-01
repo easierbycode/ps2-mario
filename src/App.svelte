@@ -9,11 +9,14 @@
   const GAME_W = 640
   const GAME_H = 448
 
-  // How much of the picture we are willing to crop to fill the screen. The
-  // 640x448 frame is 10:7; a 16:9 viewport is a ~1.14x mismatch, which
-  // ENVELOP absorbs by overflowing the short axis a little. Past this the
-  // crop would eat real playfield, so fall back to letterboxed FIT.
-  const MAX_OVERSCAN = 1.2
+  // How far the viewport's aspect may drift from the frame's 10:7 before
+  // ENVELOP stops being the better fill. The margin is deliberately tight:
+  // the HUD is drawn flush to the frame edges (WORLD at x=0, COINS against
+  // the right edge), so even a few percent of overscan clips it. Within
+  // this band the crop is under a pixel, which just soaks up rounding and
+  // leaves no letterbox; past it, FIT is the largest picture that still
+  // shows the whole frame.
+  const MAX_OVERSCAN = 1.02
 
   // Single-scene game: Ps2Scene hosts the AthenaEnv runtime; all flow
   // (title <-> game, transitions) lives inside the PS2 game code.

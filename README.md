@@ -64,10 +64,12 @@ list.
 `play/` mounts one Svelte component ([`src/App.svelte`](src/App.svelte))
 that hosts a single Phaser scene. The canvas takes the largest slice of the
 viewport it can: at launch — and on every resize or orientation change — it
-picks **ENVELOP** when the viewport is within 20% of the PS2's 10:7 frame
-(so a 4:3 or 16:10 screen is filled edge to edge, overflowing the short axis
-a little) and falls back to letterboxed **FIT** when the mismatch is larger,
-where enveloping would crop real playfield instead of margin.
+picks **ENVELOP** when the viewport's aspect is within 2% of the PS2's 10:7
+frame, so a near-matching screen fills edge to edge with no letterbox, and
+otherwise **FIT**, the largest picture that still shows the whole frame. The
+band is tight on purpose: the HUD sits flush against the frame edges (WORLD
+at x=0, COINS against the right edge), so overscan clips it before it clips
+anything you could spare.
 
 The `ps2/` tree keeps AthenaEnv's cwd-relative bare specifiers
 (`lib/input.js`, `screens/GameScreen.js`, `objects/mario.js`) and QuickJS's
