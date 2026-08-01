@@ -1,4 +1,6 @@
 import * as Inp from 'lib/input.js';
+import { createKonamiDetector } from 'lib/konami.js';
+import { getCharacter, setCharacter } from 'lib/character.js';
 
 export default class TitleScreen {
   constructor(screenManager) {
@@ -7,6 +9,7 @@ export default class TitleScreen {
     const screenMode = Screen.getMode();
     this.screenWidth = screenMode.width;
     this.screenHeight = screenMode.height;
+    this.konami = createKonamiDetector();
   }
 
   onEnter() {
@@ -15,6 +18,12 @@ export default class TitleScreen {
 
   update() {
     const pad = Inp.poll();
+
+    // Konami code swaps Mario for DK (entering it again swaps back)
+    if (this.konami(pad)) {
+      setCharacter(getCharacter() === 'dk' ? 'mario' : 'dk');
+    }
+
     if (pad.start) {
       // Use a transition to switch to the game screen
       this.screenManager.changeScreen('game', true);
