@@ -24,6 +24,13 @@ Download page + browser build + ISO deploy to
 pokes the [CMG launcher](https://github.com/easierbycode/cmg) so its
 PlayStation 2 screen picks up the new web build and disc image.
 
+The NRO is the only artifact built against a third-party package server
+(pkg.devkitpro.org, which 403s often enough to matter), so it can't hold the
+release hostage: if that job fails the site still publishes, the download
+page swaps its Switch button for a note
+([`scripts/disable-switch-download.mjs`](scripts/disable-switch-download.mjs)),
+and the run goes red so the outage stays visible.
+
 ## Run
 
 ```sh

@@ -19,10 +19,22 @@ jobs:
         with:
           submodules: true
 
+      # pkg.devkitpro.org 403s the pacman databases often enough to have taken
+      # a whole deploy down once. Retry before giving up; deploy.yml treats a
+      # failure here as "no NRO this time" rather than a failed release.
       - name: Install SDL2 portlibs
         run: |
-          dkp-pacman -Sy --noconfirm
-          dkp-pacman -S --noconfirm --needed switch-sdl2 switch-sdl2_image switch-sdl2_ttf switch-freetype switch-libpng switch-zlib
+          for attempt in 1 2 3 4; do
+            if dkp-pacman -Sy --noconfirm && \
+               dkp-pacman -S --noconfirm --needed \
+                 switch-sdl2 switch-sdl2_image switch-sdl2_ttf switch-freetype switch-libpng switch-zlib; then
+              exit 0
+            fi
+            echo "::warning::devkitPro package sync failed (attempt $attempt/4)"
+            sleep $((attempt * 15))
+          done
+          echo "::error::could not fetch the devkitPro portlibs after 4 attempts"
+          exit 1
 
       - uses: actions/setup-node@v4
         with:
