@@ -26,7 +26,27 @@
 // static/PlayStation2/ and run `deno task ps2:manifest`.
 
 const SECTOR = 2048;
-const NOW = new Date();
+// The only non-deterministic input to the image. Left as the wall clock the
+// ISO would otherwise be byte-different on every build, which matters because
+// the CMG launcher commits this 5.6MB blob: a rebuild that changed nothing
+// would still land a fresh copy in its history. Honour SOURCE_DATE_EPOCH (the
+// reproducible-builds convention) so CI can pin it to the source commit's
+// date and identical input produces an identical disc.
+const NOW = (() => {
+  // reading the env is a permission; without --allow-env fall back to the clock
+  let epoch: string | undefined;
+  try {
+    epoch = Deno.env.get("SOURCE_DATE_EPOCH");
+  } catch {
+    epoch = undefined;
+  }
+  if (epoch) {
+    const seconds = Number(epoch);
+    if (Number.isFinite(seconds)) return new Date(seconds * 1000);
+    console.error(`[athena-iso] ignoring unparseable SOURCE_DATE_EPOCH "${epoch}"`);
+  }
+  return new Date();
+})();
 
 // ── little binary helpers ────────────────────────────────────────────────────
 function u16le(v: number): number[] {

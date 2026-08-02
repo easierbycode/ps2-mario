@@ -1116,7 +1116,7 @@
         {
           "height": 6,
           "id": 289,
-          "name": "level1Room1",
+          "name": "level1room1",
           "properties": {
             "direction": "down",
             "marioSpawnX": 16,
@@ -1137,7 +1137,7 @@
         {
           "height": 6,
           "id": 293,
-          "name": "level1Room2",
+          "name": "level1room2",
           "properties": {
             "direction": "down",
             "marioSpawnX": 16,

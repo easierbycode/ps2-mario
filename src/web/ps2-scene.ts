@@ -36,6 +36,33 @@ const athenaPath = (globKey: string) => globKey.replace(/^.*\/ps2\//, '')
 const TEXTURES = new Map(Object.entries(assetUrls).map(([k, url]) => [athenaPath(k), url]))
 const LEVELS = new Map(Object.entries(levelSources).map(([k, src]) => [athenaPath(k), src]))
 const FONTS = new Map(Object.entries(fontUrls).map(([k, url]) => [athenaPath(k), url]))
+/** texture keys are the Athena paths themselves — this is the lookup table */
+const TEXTURE_KEYS = new Map([...TEXTURES.keys()].map((key) => [key, key]))
+
+/**
+ * Resolve an Athena path the way the PS2 does.
+ *
+ * cdvd fileio is case-insensitive (and build-athena-iso.ts uppercases every
+ * name onto the disc), so the game gets away with asking for
+ * "assets/tiles/level1Room1.json" when the file is level1room1.json — a
+ * Tiled portal's name is the level it loads, and those names are camelCase.
+ * A plain Map lookup is stricter than the reference platform, which is how
+ * that mismatch reached the browser as a crash. Match case-insensitively and
+ * say so, since romfs on the Switch *is* case-sensitive: a warning here means
+ * the paths need fixing at the source.
+ */
+function resolveAthenaPath<T>(table: Map<string, T>, path: string, kind: string): T | undefined {
+  const exact = table.get(path)
+  if (exact !== undefined) return exact
+  const wanted = path.toLowerCase()
+  for (const [key, value] of table) {
+    if (key.toLowerCase() === wanted) {
+      console.warn(`[ps2-mario] ${kind} "${path}" only matches "${key}" ignoring case — fix the path`)
+      return value
+    }
+  }
+  return undefined
+}
 
 /** stand-in for an Athena path with no art in the tree (e.g. the unused transition sheet) */
 const MISSING_TEXTURE = 'ps2:missing'
@@ -68,13 +95,18 @@ export default class Ps2Scene extends Phaser.Scene {
     const { host, destroy } = createPhaserHost({
       scene: this,
       pads: this.pads,
-      resolveTexture: (path) => (this.textures.exists(path) ? path : MISSING_TEXTURE),
+      resolveTexture: (path) => {
+        if (this.textures.exists(path)) return path
+        const key = resolveAthenaPath(TEXTURE_KEYS, path, 'texture')
+        return key ?? MISSING_TEXTURE
+      },
       resolveFont: () => ({ key: BITMAP_FONT }),
       storage: {
         // Tiled maps ship with the build; level-editor saves land in
         // localStorage and shadow them, which is as close to writing back to
         // the disc as the browser gets.
-        loadFile: (path) => localStorage.getItem(`ps2-mario:${path}`) ?? LEVELS.get(path) ?? null,
+        loadFile: (path) =>
+          localStorage.getItem(`ps2-mario:${path}`) ?? resolveAthenaPath(LEVELS, path, 'file') ?? null,
         writeFile: (path, data) => localStorage.setItem(`ps2-mario:${path}`, data),
       },
     })
