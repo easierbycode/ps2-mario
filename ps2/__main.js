@@ -18,7 +18,7 @@ tileset.filter = NEAREST; // crisp pixel art
 
 // --- Load map & tileset based on your JSON ---
 // const level = Tiled.loadJSON("assets/tiles/level1.json");
-const level = Tiled.loadJSON("assets/tiles/level4-2.json");
+const level = Tiled.loadJSON("assets/tiles/level4_2.json");
 const ts    = Tiled.tilesetInfo(level, "tiles");
 // const fg    = Tiled.findLayer(level, "foregroundLayer");
 const fg    = Tiled.findLayer(level, "layer");

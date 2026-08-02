@@ -1,0 +1,26 @@
+{
+  "name": "ps2-mario",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Super Mario Bros — 5velte-ps2 (AthenaEnv v4) PlayStation 2 port; one JS codebase for browser + real PS2 + Switch",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "iso": "deno run --allow-read --allow-write scripts/build-athena-iso.ts ps2 ps2-mario.iso",
+    "nro": "node scripts/stage-switch-romfs.mjs && node scripts/build-switch-nro.mjs"
+  },
+  "dependencies": {
+    "phaser": "4.2.1",
+    "svelte": "^5.56.4",
+    "5velte-ph4ser": "^1.0.0",
+    "5velte-ps2": "npm:@jsr/easierbycode__svelte-ps2@^1.1.0"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@tsconfig/svelte": "^5.0.8",
+    "typescript": "^5.9.3",
+    "vite": "^8.1.3"
+  }
+}

@@ -7,6 +7,10 @@ import { getCharacter } from "../lib/character.js";
 // ---- World constants (tune as needed) ----
 const GRAV = 0.35;
 const JUMP_V = -6.0;
+const WALK_SPEED = 1.2;
+const RUN_SPEED = 2.4;
+// debug-only, and it shows: a tile per frame outruns the camera
+const BOOST_SPEED = 9.8;
 
 export class Mario {
   constructor(spawn) {
@@ -91,11 +95,13 @@ export class Mario {
 
     // Handle input and physics
     if (!this.dead) {
-      let SPEED = 1.2;
+      // B (SQUARE) runs; the boost is the top face button and only answers
+      // in a debug build (lib/input.js)
+      let SPEED = WALK_SPEED;
       if (pad.run) {
-        SPEED = 2.4;
+        SPEED = RUN_SPEED;
       } else if (pad.boost) {
-        SPEED = 9.8;
+        SPEED = BOOST_SPEED;
       }
       this.vx = (pad.right ? SPEED : 0) - (pad.left ? SPEED : 0);
       if (pad.jumpPressed && this.grounded) {

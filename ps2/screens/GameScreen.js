@@ -128,7 +128,7 @@ export default class GameScreen {
 
   handlePlayerPortalOverlap(player, portal) {
     if (portal.name === 'exit' && this.currentLevelName === 'level1') {
-      this.loadLevel('level4-2');
+      this.loadLevel('level4_2');
       player.x = 12;
       player.y = 44;
       player.vx = 0;
@@ -769,7 +769,9 @@ export default class GameScreen {
     }
 
     this.font.print(0, 0, "WORLD");
-    const levelNum = this.currentLevelName.replace("level", "");
+    // level files use "_" where the world number reads "-" (ISO9660 has no
+    // hyphen, so "level4_2.json" is the name that survives onto the disc)
+    const levelNum = this.currentLevelName.replace("level", "").replace("_", "-");
     this.font.print(this.scoreNumTxtX, 0, levelNum);
 
     this.font.print(0, 24, "MARIO");
