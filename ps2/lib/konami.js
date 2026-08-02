@@ -1,5 +1,7 @@
-// Konami code detector: UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT B A
-// (B = CIRCLE, A = CROSS on a PS2 pad).
+// Konami code detector: UP UP DOWN DOWN LEFT RIGHT LEFT RIGHT CIRCLE CROSS —
+// how PlayStation games have always spelled the code's B A ending. It is
+// deliberately not the game's own B button (SQUARE, the left face button),
+// so holding run can never advance the sequence.
 const SEQUENCE = [
   "up", "up", "down", "down",
   "left", "right", "left", "right",

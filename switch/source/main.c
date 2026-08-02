@@ -8,6 +8,7 @@
 // Dev loop: launch with `nxlink -s switch/ps2-mario.nro` (hbmenu in
 // netloader mode) — stdout, including JS stack traces, streams back here.
 #include <stdio.h>
+#include <string.h>
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_image.h>
 
@@ -18,8 +19,13 @@
 #include "js_host.h"
 
 int main(int argc, char **argv) {
-    (void)argc;
-    (void)argv;
+    // ps2/lib/debug.js reads globalThis.__DEBUG; pass --debug through the
+    // netloader (nxlink -s ps2-mario.nro -- --debug) to turn on the
+    // debug-only extras without rebuilding the game tree
+    bool want_debug = false;
+    for (int i = 1; i < argc; i++) {
+        if (argv[i] && !strcmp(argv[i], "--debug")) want_debug = true;
+    }
 #ifdef __SWITCH__
     romfsInit();
     socketInitializeDefault();
@@ -48,6 +54,11 @@ int main(int argc, char **argv) {
     host_install_pads(ctx);
     host_install_std(ctx);
     if (font_ok) host_install_font(ctx);
+    {
+        JSValue global = JS_GetGlobalObject(ctx);
+        JS_SetPropertyStr(ctx, global, "__DEBUG", JS_NewBool(ctx, want_debug));
+        JS_FreeValue(ctx, global);
+    }
 
     bool ok = js_eval_path(ctx, HOST_ROOT "prelude.js", false) &&
               js_eval_path(ctx, GAME_ROOT "main.js", true);

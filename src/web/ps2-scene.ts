@@ -95,6 +95,9 @@ export default class Ps2Scene extends Phaser.Scene {
     g.std = r.std
     g.NEAREST = r.NEAREST
     g.LINEAR = r.LINEAR
+    // ps2/lib/debug.js reads this; ?debug turns on the debug-only extras
+    // (the TRIANGLE speed boost) without a rebuild
+    g.__DEBUG = new URLSearchParams(location.search).has('debug')
 
     this.boot()
 

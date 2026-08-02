@@ -13,16 +13,15 @@ export type AxisName = 'lx' | 'ly' | 'rx' | 'ry'
 
 // Standard-mapping gamepad button index -> PS2 mask.
 //
-// The control scheme is SMB's: bottom face button is A (jump = CROSS) and
-// the left face button is B (run / boost / fireball = SQUARE). The right
-// face button — the one labelled B on an Xbox-layout pad — is mapped to
-// SQUARE as well, so "press B to run" is true whichever label the pad wears;
-// it also keeps CIRCLE, so the Konami code (…B A) stays enterable there.
+// The control scheme is SMB's, and it maps by position on every pad whatever
+// the labels say: A (jump) is the bottom face button, B (run / fireball) the
+// left one. The standard mapping is already positional, so the indices line
+// up with the PS2's own face-button layout.
 const GAMEPAD_MAP: Array<number | undefined> = [
   PAD_BUTTONS.CROSS, // 0 bottom face — A / jump
-  PAD_BUTTONS.SQUARE | PAD_BUTTONS.CIRCLE, // 1 right face — the "B" button
-  PAD_BUTTONS.SQUARE, // 2 left face — B / run / boost / fireball
-  PAD_BUTTONS.TRIANGLE, // 3 top face
+  PAD_BUTTONS.CIRCLE, // 1 right face
+  PAD_BUTTONS.SQUARE, // 2 left face — B / run / fireball
+  PAD_BUTTONS.TRIANGLE, // 3 top face — the debug boost
   PAD_BUTTONS.L1, // 4
   PAD_BUTTONS.R1, // 5
   PAD_BUTTONS.L2, // 6

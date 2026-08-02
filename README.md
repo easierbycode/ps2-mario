@@ -44,20 +44,34 @@ The scheme is Super Mario Bros': **A jumps, B runs**.
 | | PS2 pad | Keyboard |
 | --- | --- | --- |
 | move | d-pad / left stick | arrows or WASD |
-| A — jump | CROSS | SPACE or X |
-| B — run, boost, fireball | SQUARE (left face button) | SHIFT or Z |
+| A — jump | CROSS (bottom face button) | SPACE or X |
+| B — run, fireball | SQUARE (left face button) | SHIFT or Z |
+| boost (debug builds only) | TRIANGLE (top face button) | V |
 | start | START | ENTER |
 | select | SELECT | BACKSPACE |
 
-B is one button: run, boost and (once Mario has the flower) fireballs all
-hang off SQUARE, the left face button. On a pad with Xbox/Nintendo labels
-the *right* face button — the one actually printed **B** — reports SQUARE
-as well, so "hold B to run" is true whichever pad you pick up; it keeps
-CIRCLE too, so the title screen's Konami code (↑↑↓↓←→←→ B A) still works.
+Buttons map **by position on every pad**, whatever the labels print: A is
+always the bottom face button and B always the left one. Every host does
+its own positional mapping — the PS2's own layout, the browser's standard
+Gamepad mapping, and `BTN_SOUTH`/`BTN_WEST` in
+[`switch/source/host_pads.c`](switch/source/host_pads.c), which has to undo
+devkitPro SDL2's Nintendo labelling.
 
-Nothing gameplay-facing sits on TRIANGLE any more; the level editor
-(**DOWN + SELECT** in game) still uses SQUARE / TRIANGLE to walk the tile
-list.
+The title screen's Konami code is unchanged: ↑↑↓↓←→←→ **CIRCLE CROSS**.
+
+The level editor (**DOWN + SELECT** in game) walks its tile list with
+SQUARE / TRIANGLE; unlike the boost those are not gated on a debug build.
+
+### Debug builds
+
+`boost` — 9.8px/frame, roughly a tile per frame — is a cheat, so it only
+answers when [`ps2/lib/debug.js`](ps2/lib/debug.js) says the build is a
+debug one. Three ways to say so:
+
+- **browser** — add `?debug` to the URL (`/play/?debug`)
+- **Switch** — `nxlink -s switch/ps2-mario.nro -- --debug`
+- **PS2** — no runtime lever, so flip `DEFAULT` in `ps2/lib/debug.js` and
+  rebuild the ISO
 
 ## Browser build
 

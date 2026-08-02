@@ -64,12 +64,10 @@ static const struct {
     SDL_GameControllerButton btn;
     uint32_t mask;
 } BTN_MAP[] = {
+    // buttons map by position, whatever the pad prints on them: A (jump) is
+    // the bottom face button and B (run / fireball) the left one
     { BTN_SOUTH, M_CROSS },
-    // SMB's B button is SQUARE (run / boost / fireball) and it lives on the
-    // left face button. The right face button — labelled B on an Xbox-layout
-    // pad — reports SQUARE too so "press B to run" holds either way, while
-    // keeping CIRCLE so the title screen's Konami code stays enterable.
-    { BTN_EAST, M_CIRCLE | M_SQUARE },
+    { BTN_EAST, M_CIRCLE },
     { BTN_WEST, M_SQUARE },
     { BTN_NORTH, M_TRIANGLE },
     { SDL_CONTROLLER_BUTTON_START, M_START },
