@@ -24,11 +24,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # The NRO is the one artifact that depends on a third-party package server
+  # (pkg.devkitpro.org), which has 403'd the pacman databases and taken a
+  # whole deploy down with it. A reusable-workflow job can't carry
+  # continue-on-error, so `build` overrides its own `if` instead: the web
+  # build, the ISO and the download page ship whether or not the NRO does,
+  # and the page drops its Switch button for that release. The nro job is
+  # left to fail loudly — the run goes red so a persistent outage is
+  # visible, but the site still publishes.
   nro:
     uses: ./.github/workflows/switch.yml
 
   build:
     needs: nro
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -52,10 +61,20 @@ jobs:
         run: deno run --allow-read --allow-write scripts/build-athena-iso.ts ps2 dist/ps2-mario.iso
 
       - name: Fetch Switch NRO from the nro job
+        continue-on-error: true
         uses: actions/download-artifact@v4
         with:
           name: ps2-mario-nro
           path: dist
+
+      # a release without the NRO is fine, a download page linking one that
+      # isn't there is not — swap the button for a note and say so in the run
+      - name: Drop the Switch button if the NRO is missing
+        run: |
+          node scripts/disable-switch-download.mjs dist
+          if [ ! -f dist/ps2-mario.nro ]; then
+            echo "⚠️ Published without the Switch NRO — the \`nro\` job could not reach devkitPro." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - uses: actions/upload-pages-artifact@v3
         with:
