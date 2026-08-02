@@ -99,8 +99,13 @@ jobs:
           name: ps2-mario-iso
           path: dist/ps2-mario.iso
 
+  # A job's default `if: success()` is satisfied only when the *whole*
+  # ancestor chain succeeded, not just its direct needs — so a failed `nro`
+  # skipped this even though `build` overrode its own condition and produced
+  # a perfectly good Pages artifact. Gate on build's result explicitly.
   deploy:
     needs: build
+    if: ${{ !cancelled() && needs.build.result == 'success' }}
     runs-on: ubuntu-latest
     environment:
       name: github-pages
@@ -115,6 +120,7 @@ jobs:
   # change up on its next run instead.
   notify-cmg:
     needs: deploy
+    if: ${{ !cancelled() && needs.deploy.result == 'success' }}
     runs-on: ubuntu-latest
     steps:
       - name: Dispatch to easierbycode/cmg
