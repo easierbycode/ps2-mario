@@ -40,7 +40,11 @@ jobs:
     if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
     steps:
+      # full history: the ISO's timestamp comes from the last commit that
+      # touched ps2/, which a shallow clone can't see
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - uses: actions/setup-node@v4
         with:
@@ -57,11 +61,15 @@ jobs:
         with:
           deno-version: v2.x
 
-      # SOURCE_DATE_EPOCH pins the ISO's timestamps to the commit being built,
-      # so the same source always produces a byte-identical disc
+      # SOURCE_DATE_EPOCH pins the ISO's timestamps so the same game produces
+      # a byte-identical disc. It comes from the last commit that touched
+      # ps2/ — the only tree the image packs — rather than HEAD, so a docs- or
+      # workflow-only commit doesn't silently churn the image.
       - name: Build PS2 ISO
         run: |
-          SOURCE_DATE_EPOCH=$(git show -s --format=%ct HEAD) \
+          epoch=$(git log -1 --format=%ct -- ps2)
+          [ -n "$epoch" ] || epoch=$(git show -s --format=%ct HEAD)
+          SOURCE_DATE_EPOCH=$epoch \
             deno run --allow-read --allow-write --allow-env \
               scripts/build-athena-iso.ts ps2 dist/ps2-mario.iso
 
