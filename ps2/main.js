@@ -1,6 +1,7 @@
 import ScreenManager from 'lib/managers/ScreenManager.js';
 import TitleScreen from 'screens/TitleScreen.js';
 import GameScreen from 'screens/GameScreen.js';
+import * as Inp from 'lib/input.js';
 
 // ---- Setup screen ----
 // v4 boots with GS depth testing on but never allocates a Z-buffer, so depth
@@ -22,6 +23,9 @@ screenManager.changeScreen('title', false);
 
 // ---- Main loop ----
 Screen.display(() => {
+  // one frame boundary for the pads, so a button press reads as one press
+  // however many times the frame polls (lib/input.js)
+  Inp.beginFrame();
   screenManager.update();
   screenManager.render();
 });
