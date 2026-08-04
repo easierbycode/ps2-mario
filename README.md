@@ -69,6 +69,13 @@ port 2 — or a gamepad the browser enumerated behind another one — plays the
 game. Two players, or a trip through the title's **ASSIGN PADS** menu, and
 the ports mean what they say again.
 
+Two ports is the limit on every host, because two is what the console has.
+AthenaEnv enforces it: `Pads.get(port)` throws `wrong port number.` for
+anything past port 1, and an uncaught throw ends the app — on hardware and
+in PCSX2 it drops straight back to the console's dashboard, with nothing on
+screen to say why. [`ps2/lib/input.js`](ps2/lib/input.js) polls ports 0 and 1
+only, and reads a port that won't answer as an empty one.
+
 A port number is all a PS2 can say about a controller, so ASSIGN PADS reads
 `P1 PAD 1` there. In the browser the rows name the pad instead — DUAL SHOCK
 4, SNES CONTROLLER, STADIA — resolved from the Gamepad id in

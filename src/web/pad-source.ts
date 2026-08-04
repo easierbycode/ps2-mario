@@ -10,7 +10,8 @@
 import { PAD_BUTTONS } from '5velte-ps2'
 import type { PadSource } from '5velte-ps2/phaser'
 
-export const MAX_PORTS = 4
+/** the console this host stands in for has two controller ports */
+export const MAX_PORTS = 2
 
 export type AxisName = 'lx' | 'ly' | 'rx' | 'ry'
 

@@ -7,14 +7,72 @@
 // the level editor, the second tile-cycle key.
 import { isDebug } from 'lib/debug.js';
 
-/** the PS2's four controller ports */
-export const MAX_PORTS = 4;
+// The PS2 has two controller ports, and AthenaEnv means it: Pads.get(port)
+// throws "wrong port number." for anything past port 1. An uncaught throw
+// ends the app — on hardware and in PCSX2 it drops straight back to the
+// console's dashboard — so asking for a third port is not a no-op, it is the
+// end of the game.
+export const MAX_PORTS = 2;
+
+/** a port that won't answer: reads as a controller with nothing pressed */
+const DEAD_PAD = { pressed: () => false, justPressed: () => false };
+
+// Never let a port take the app down. AthenaEnv throws past port 1, the
+// Switch host clamps, the browser host answers everything; this makes all
+// three behave like an empty port.
+function padAt(port) {
+  try {
+    return Pads.get(port) || DEAD_PAD;
+  } catch (e) {
+    return DEAD_PAD;
+  }
+}
+
+// Every button the game reads. The mask of these is what an edge is measured
+// against, so anything asked for below has to be in here.
+let BUTTONS = null;
+function buttons() {
+  return BUTTONS || (BUTTONS = [
+    Pads.LEFT, Pads.RIGHT, Pads.UP, Pads.DOWN,
+    Pads.CROSS, Pads.SQUARE, Pads.TRIANGLE, Pads.CIRCLE,
+    Pads.START, Pads.SELECT,
+  ]);
+}
+
+// Edges, tracked here rather than taken on trust from the host.
+//
+// AthenaEnv rotates a pad's previous-button word in its frame loop, but only
+// for the single pad it holds a reference to, and Pads.get() hands back a
+// freshly zeroed struct every call — so on the PS2 justPressed() reads back
+// exactly the same as pressed(), and a menu cursor walks a row per frame
+// while you hold DOWN. Keeping our own record of last frame fixes the console
+// without disturbing the browser or the Switch, whose edges are already
+// right: an edge has to be new to both.
+const prevMask = [];
+const curMask = [];
+
+/**
+ * Open a frame: last frame's buttons become the thing edges are measured
+ * against. Called once from main.js before anything polls. Skip it and edges
+ * degrade to whatever the host reports, which is what they were before.
+ */
+export function beginFrame() {
+  for (let port = 0; port < MAX_PORTS; port++) prevMask[port] = curMask[port] || 0;
+}
 
 export function poll(port = 0) {
-  const pad = Pads.get(port);
+  const pad = padAt(port);
 
-  const pressed  = (btn) => pad.pressed(btn);
-  const just     = (btn) => pad.justPressed(btn);
+  // one read per button per frame, and the mask both level and edge answers
+  // come from — polling twice in a frame gives the same answer twice
+  const all = buttons();
+  let mask = 0;
+  for (let i = 0; i < all.length; i++) if (pad.pressed(all[i])) mask |= all[i];
+  curMask[port] = mask;
+  const prev = prevMask[port] || 0;
+
+  const pressed  = (btn) => (mask & btn) !== 0;
+  const just     = (btn) => (mask & btn) !== 0 && (prev & btn) === 0 && pad.justPressed(btn);
 
   // the B button — one physical button behind run and fireball
   const b = pressed(Pads.SQUARE);
@@ -64,7 +122,7 @@ export function padName(port = 0) {
 }
 
 /**
- * Every port merged into one pad — whichever controller is talking drives it.
+ * Both ports merged into one pad — whichever controller is talking drives it.
  * An empty port reads as all-false, so this is just an OR down the fields.
  *
  * Used wherever a single player shouldn't have to care which port they are
