@@ -53,6 +53,17 @@ export function poll(port = 0) {
 }
 
 /**
+ * What the pad on a port is called, when the host knows. Only the browser
+ * does: a Gamepad carries an id, so ASSIGN PADS can say DUAL SHOCK 4 instead
+ * of PAD 2. A PS2 sees ports and nothing else, so this reads back empty
+ * there and callers name the port instead.
+ */
+export function padName(port = 0) {
+  if (typeof Pads.getName !== 'function') return '';
+  return Pads.getName(port) || '';
+}
+
+/**
  * Every port merged into one pad — whichever controller is talking drives it.
  * An empty port reads as all-false, so this is just an OR down the fields.
  *
