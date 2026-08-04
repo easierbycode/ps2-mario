@@ -15,10 +15,10 @@ const assetUrls = import.meta.glob('../../ps2/assets/**/*.png', {
   import: 'default',
 }) as Record<string, string>
 
-// Tiled maps, read at runtime through std.loadFile(). They are inlined as
-// text rather than fetched so a level load stays synchronous, exactly as it
-// is on the PS2.
-const levelSources = import.meta.glob('../../ps2/assets/tiles/*.json', {
+// JSON read at runtime through std.loadFile() — Tiled maps and sprite-atlas
+// descriptors. They are inlined as text rather than fetched so a level load
+// stays synchronous, exactly as it is on the PS2.
+const levelSources = import.meta.glob('../../ps2/assets/**/*.json', {
   eager: true,
   query: '?raw',
   import: 'default',
@@ -120,7 +120,16 @@ export default class Ps2Scene extends Phaser.Scene {
     g.Screen = r.Screen
     g.Draw = r.Draw
     g.Color = r.Color
-    g.Pads = r.Pads
+    // the base runtime's Pads ignores the port; overlay a port-aware get()
+    // so the game's 2-player pad assignment works with multiple gamepads
+    const pads = this.pads
+    g.Pads = {
+      ...r.Pads,
+      get: (port = 0) => ({
+        pressed: (mask: number) => pads.portHeld(port, mask),
+        justPressed: (mask: number) => pads.portFresh(port, mask),
+      }),
+    }
     g.Image = r.Image
     g.Font = r.Font
     g.Timer = r.Timer

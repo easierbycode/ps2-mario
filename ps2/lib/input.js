@@ -7,8 +7,8 @@
 // the level editor, the second tile-cycle key.
 import { isDebug } from 'lib/debug.js';
 
-export function poll() {
-  const pad = Pads.get(0);
+export function poll(port = 0) {
+  const pad = Pads.get(port);
 
   const pressed  = (btn) => pad.pressed(btn);
   const just     = (btn) => pad.justPressed(btn);

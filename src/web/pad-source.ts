@@ -1,13 +1,17 @@
 // PadSource for 5velte-ps2's Phaser host: answers PS2 button-mask queries
-// from the keyboard and the first connected Gamepad (standard mapping).
-// refresh() runs once per frame, before runtime.tick(), so justPressed edges
-// line up with game frames.
+// from the keyboard and connected Gamepads (standard mapping). refresh()
+// runs once per frame, before runtime.tick(), so justPressed edges line up
+// with game frames.
 //
-// Mario is single-player, so the base runtime's single-port Pads is enough —
-// no per-port fan-out like the 4-player builds need.
+// Mario's 2-player mode reads pad ports the way a real PS2 does, so this
+// source fans out per port: the k-th connected gamepad answers port k, and
+// the keyboard merges into port 0. The base runtime's Pads ignores ports —
+// ps2-scene.ts overlays a port-aware Pads global on top of this source.
 
 import { PAD_BUTTONS } from '5velte-ps2'
 import type { PadSource } from '5velte-ps2/phaser'
+
+export const MAX_PORTS = 4
 
 export type AxisName = 'lx' | 'ly' | 'rx' | 'ry'
 
@@ -60,9 +64,11 @@ const STICK_THRESHOLD = 0.5
 
 export class WebPadSource implements PadSource {
   private keysDown = new Set<string>()
-  private cur = 0
-  private prev = 0
-  private axes: Record<AxisName, number> = { lx: 0, ly: 0, rx: 0, ry: 0 }
+  private cur = new Array<number>(MAX_PORTS).fill(0)
+  private prev = new Array<number>(MAX_PORTS).fill(0)
+  private axes: Record<AxisName, number>[] = Array.from({ length: MAX_PORTS }, () => ({
+    lx: 0, ly: 0, rx: 0, ry: 0,
+  }))
 
   private onKeyDown = (e: KeyboardEvent) => {
     if (KEY_MAP[e.code] !== undefined) {
@@ -87,43 +93,62 @@ export class WebPadSource implements PadSource {
 
   /** call once per frame, before runtime.tick() */
   refresh() {
-    this.prev = this.cur
+    const gamepads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : []
+    const connected = Array.prototype.filter.call(
+      gamepads,
+      (p: Gamepad | null) => p && p.connected,
+    ) as Gamepad[]
 
-    let mask = 0
-    for (const code of this.keysDown) mask |= KEY_MAP[code] ?? 0
+    for (let port = 0; port < MAX_PORTS; port++) {
+      this.prev[port] = this.cur[port]
 
-    this.axes.lx = this.axes.ly = this.axes.rx = this.axes.ry = 0
+      let mask = 0
+      // the keyboard is port 0's controller
+      if (port === 0) for (const code of this.keysDown) mask |= KEY_MAP[code] ?? 0
 
-    const pads = typeof navigator !== 'undefined' && navigator.getGamepads ? navigator.getGamepads() : []
-    const pad = Array.prototype.find.call(pads, (p: Gamepad | null) => p && p.connected) as Gamepad | undefined
-    if (pad) {
-      pad.buttons.forEach((b, i) => {
-        if (b.pressed && GAMEPAD_MAP[i] !== undefined) mask |= GAMEPAD_MAP[i]!
-      })
-      this.axes.lx = pad.axes[0] ?? 0
-      this.axes.ly = pad.axes[1] ?? 0
-      this.axes.rx = pad.axes[2] ?? 0
-      this.axes.ry = pad.axes[3] ?? 0
-      // the game only reads the d-pad, so fold the left stick into it
-      if (this.axes.lx <= -STICK_THRESHOLD) mask |= PAD_BUTTONS.LEFT
-      if (this.axes.lx >= STICK_THRESHOLD) mask |= PAD_BUTTONS.RIGHT
-      if (this.axes.ly <= -STICK_THRESHOLD) mask |= PAD_BUTTONS.UP
-      if (this.axes.ly >= STICK_THRESHOLD) mask |= PAD_BUTTONS.DOWN
+      const axes = this.axes[port]
+      axes.lx = axes.ly = axes.rx = axes.ry = 0
+
+      // the k-th connected gamepad answers port k
+      const pad = connected[port]
+      if (pad) {
+        pad.buttons.forEach((b, i) => {
+          if (b.pressed && GAMEPAD_MAP[i] !== undefined) mask |= GAMEPAD_MAP[i]!
+        })
+        axes.lx = pad.axes[0] ?? 0
+        axes.ly = pad.axes[1] ?? 0
+        axes.rx = pad.axes[2] ?? 0
+        axes.ry = pad.axes[3] ?? 0
+        // the game only reads the d-pad, so fold the left stick into it
+        if (axes.lx <= -STICK_THRESHOLD) mask |= PAD_BUTTONS.LEFT
+        if (axes.lx >= STICK_THRESHOLD) mask |= PAD_BUTTONS.RIGHT
+        if (axes.ly <= -STICK_THRESHOLD) mask |= PAD_BUTTONS.UP
+        if (axes.ly >= STICK_THRESHOLD) mask |= PAD_BUTTONS.DOWN
+      }
+
+      this.cur[port] = mask
     }
-
-    this.cur = mask
   }
 
-  // PadSource contract
+  // per-port queries, used by the port-aware Pads overlay in ps2-scene.ts
+  portHeld(port: number, mask: number) {
+    return ((this.cur[port] ?? 0) & mask) !== 0
+  }
+
+  portFresh(port: number, mask: number) {
+    return ((this.cur[port] ?? 0) & mask) !== 0 && ((this.prev[port] ?? 0) & mask) === 0
+  }
+
+  // PadSource contract — the host's own single-port view answers as port 0
   held(mask: number) {
-    return (this.cur & mask) !== 0
+    return this.portHeld(0, mask)
   }
 
   fresh(mask: number) {
-    return (this.cur & mask) !== 0 && (this.prev & mask) === 0
+    return this.portFresh(0, mask)
   }
 
   axis(name: AxisName) {
-    return this.axes[name] ?? 0
+    return this.axes[0][name] ?? 0
   }
 }

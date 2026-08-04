@@ -1,8 +1,32 @@
 import * as Phys from "../lib/physics.js";
 import * as Inp from "../lib/input.js";
 import { handleAnimations } from "../lib/mario_anim_logic.js";
-import { createMarioAnimationsFromSheet, createDKAnimationsFromSheet } from "../lib/mario_animations.js";
+import {
+  createMarioAnimationsFromSheet,
+  createDKAnimationsFromSheet,
+  createLuigiAnimationsFromSheet,
+  createSpaceMarioAnimationsFromSheet,
+  createNabbitAnimationsFromSheet,
+} from "../lib/mario_animations.js";
 import { getCharacter } from "../lib/character.js";
+
+// Every playable character, by the name the session config / GameScreen use.
+const ANIM_FACTORIES = {
+  mario: createMarioAnimationsFromSheet,
+  dk: createDKAnimationsFromSheet,
+  luigi: createLuigiAnimationsFromSheet,
+  space_mario: createSpaceMarioAnimationsFromSheet,
+  nabbit: createNabbitAnimationsFromSheet,
+};
+
+// HUD names. Space Mario is still Mario under the helmet.
+const LABELS = {
+  mario: "MARIO",
+  dk: "DK",
+  luigi: "LUIGI",
+  space_mario: "MARIO",
+  nabbit: "NABBIT",
+};
 
 // ---- World constants (tune as needed) ----
 const GRAV = 0.35;
@@ -13,7 +37,7 @@ const RUN_SPEED = 2.4;
 const BOOST_SPEED = 9.8;
 
 export class Mario {
-  constructor(spawn) {
+  constructor(spawn, opts = {}) {
     this.x = spawn.x;
     this.y = spawn.y - (spawn.h || 14);
     this.w = spawn.w || 8;
@@ -26,15 +50,23 @@ export class Mario {
     this.ducking = false;
     this.dead = false;
     this.animName = "";
+    this.skidTimer = 0;
     this.invulnerable = false;
     this.invulnerableTimer = 0;
     this.smallWidth = spawn.w || 8;
     this.smallHeight = spawn.h || 14;
     this.bigWidth = (spawn.w || 8);
     this.bigHeight = (spawn.h || 14) + 4;
-    this.anims = getCharacter() === "dk"
-      ? createDKAnimationsFromSheet()
-      : createMarioAnimationsFromSheet();
+
+    this.character = opts.character || getCharacter();
+    this.label = opts.label || LABELS[this.character] || "MARIO";
+    this.padPort = opts.padPort ?? 0;
+    this.lives = opts.lives ?? 3;
+    this.coins = 0;
+    this.out = false; // no lives left — removed from play
+
+    const factory = ANIM_FACTORIES[this.character] || createMarioAnimationsFromSheet;
+    this.anims = factory();
   }
 
   growMario() {
@@ -82,6 +114,21 @@ export class Mario {
     this.invulnerableTimer = frames;
   }
 
+  // Bring a dead player back at (x, y). Death only happens small, so size
+  // needs no reset; the brief invulnerability covers the drop back in.
+  respawnAt(x, y) {
+    this.dead = false;
+    this.x = x;
+    this.y = y;
+    this.vx = 0;
+    this.vy = 0;
+    this.grounded = false;
+    this.ducking = false;
+    this.animName = "";
+    this.skidTimer = 0;
+    this.makeInvulnerable(120);
+  }
+
   update(pad, collGrid, TILE) {
     // Handle invulnerability timer
     if (this.invulnerable) {
@@ -120,10 +167,13 @@ export class Mario {
   }
 
   draw(camX, camY, SCALE, snapToPixel, HALF_TEXEL_BIAS) {
+    // classic invulnerability flicker
+    if (this.invulnerable && Math.floor(this.invulnerableTimer / 4) % 2 === 0) return;
+
     let currentAnim, rect, flipH;
 
     if (this.dead) {
-      currentAnim = this.anims.smallJump || this.anims.smallWalk;
+      currentAnim = this.anims.dead || this.anims.smallJump || this.anims.smallWalk;
       currentAnim.frame = 0; // Force to first frame
       rect = currentAnim.currentRect;
       flipH = this.facing < 0;
