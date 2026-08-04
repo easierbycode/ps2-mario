@@ -123,6 +123,114 @@ function pickProfile(pad: Gamepad): PadProfile {
   return pad.buttons.length < 14 ? RETRO : STANDARD
 }
 
+// --- friendly names -------------------------------------------------------
+//
+// The title screen's ASSIGN PADS menu names a port ("PAD 2") because that is
+// all a PS2 knows about it. The browser knows more: every Gamepad carries an
+// id, so the menu can say DUAL SHOCK 4 or SNES CONTROLLER and a player can
+// tell which row is theirs without unplugging anything to find out.
+
+/** long enough for SNES CONTROLLER, short enough to keep the menu one line */
+const MAX_NAME = 16
+
+/**
+ * The vendor:product pair a browser buries in the pad id.
+ *
+ * Chrome appends "(STANDARD GAMEPAD Vendor: 054c Product: 09cc)"; Firefox
+ * puts the same two ids up front as "054c-09cc-Wireless Controller".
+ */
+function modelKey(id: string) {
+  const chrome = /vendor:\s*([0-9a-f]{4})\s+product:\s*([0-9a-f]{4})/i.exec(id)
+  const firefox = /^([0-9a-f]{4})-([0-9a-f]{4})/i.exec(id)
+  const found = chrome ?? firefox
+  return found ? `${found[1]}:${found[2]}`.toLowerCase() : ''
+}
+
+/** the models worth naming exactly, by vendor:product */
+const MODEL_NAMES: Record<string, string> = {
+  '054c:0268': 'DUAL SHOCK 3',
+  '054c:05c4': 'DUAL SHOCK 4',
+  '054c:09cc': 'DUAL SHOCK 4',
+  '054c:0ba0': 'DUAL SHOCK 4',
+  '054c:0ce6': 'DUALSENSE',
+  '054c:0df2': 'DUALSENSE',
+  '057e:2006': 'JOY-CON L',
+  '057e:2007': 'JOY-CON R',
+  '057e:2009': 'SWITCH PRO',
+  '057e:200e': 'JOY-CON',
+  '057e:2017': 'SNES CONTROLLER',
+  '057e:2019': 'N64 CONTROLLER',
+  '18d1:9400': 'STADIA',
+  '1949:0402': 'LUNA',
+}
+
+/** what a pad calls itself, when the exact model isn't in the table */
+const NAME_PATTERNS: Array<[RegExp, string]> = [
+  [/dualsense/i, 'DUALSENSE'],
+  [/dual\s*shock|playstation|\bps[2345]\b/i, 'DUAL SHOCK'],
+  [/xbox|x-?input/i, 'XBOX PAD'],
+  [/stadia/i, 'STADIA'],
+  [/luna/i, 'LUNA'],
+  [/steam/i, 'STEAM PAD'],
+  [/joy-?con/i, 'JOY-CON'],
+  [/pro controller/i, 'SWITCH PRO'],
+  [/8bitdo/i, '8BITDO PAD'],
+  [/super nintendo|\bsnes\b|\bsfc\b/i, 'SNES CONTROLLER'],
+  [/famicom|\bnes\b/i, 'NES CONTROLLER'],
+  [/nintendo 64|\bn64\b/i, 'N64 CONTROLLER'],
+  [/mega ?drive|genesis/i, 'GENESIS PAD'],
+  [/saturn/i, 'SATURN PAD'],
+  [/logitech/i, 'LOGITECH PAD'],
+]
+
+/**
+ * Vendors whose no-name pads are all the same thing. The clone family the
+ * RETRO profile exists for ships as "USB Gamepad" and nothing else, so its
+ * vendor id is the only place SNES is written down.
+ */
+const VENDOR_NAMES: Record<string, string> = {
+  '0079': 'SNES CONTROLLER', // DragonRise
+  '0e8f': 'SNES CONTROLLER', // GreenAsia
+  '0810': 'SNES CONTROLLER', // PCS "twin USB"
+  '2dc8': '8BITDO PAD',
+  '054c': 'PLAYSTATION',
+  '045e': 'XBOX PAD',
+  '057e': 'NINTENDO PAD',
+  '18d1': 'STADIA',
+  '1949': 'LUNA',
+  '28de': 'STEAM PAD',
+  '046d': 'LOGITECH PAD',
+}
+
+/** the id with the browser's bookkeeping stripped off, as a last resort */
+function cleanId(id: string) {
+  const bare = id
+    .replace(/\([^)]*\)/g, ' ') // Chrome's "(STANDARD GAMEPAD Vendor: ...)"
+    .replace(/^[0-9a-f]{4}-[0-9a-f]{4}-/i, ' ') // Firefox's leading ids
+    .replace(/[_-]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toUpperCase()
+  if (!bare) return 'GAMEPAD'
+  if (bare.length <= MAX_NAME) return bare
+  // cut on a word boundary when there is one to cut on
+  const cut = bare.slice(0, MAX_NAME)
+  const space = cut.lastIndexOf(' ')
+  return (space > MAX_NAME / 2 ? cut.slice(0, space) : cut).trim()
+}
+
+/** a name for the ASSIGN PADS menu — the model when we know it, else the id */
+function friendlyName(pad: Gamepad) {
+  const key = modelKey(pad.id)
+  const model = MODEL_NAMES[key]
+  if (model) return model
+  const called = NAME_PATTERNS.find(([re]) => re.test(pad.id))
+  if (called) return called[1]
+  const vendor = VENDOR_NAMES[key.slice(0, 4)]
+  if (vendor) return vendor
+  return cleanId(pad.id)
+}
+
 const KEY_MAP: Record<string, number> = {
   ArrowUp: PAD_BUTTONS.UP,
   ArrowDown: PAD_BUTTONS.DOWN,
@@ -181,6 +289,10 @@ export class WebPadSource implements PadSource {
   }))
   /** profile per pad, resolved once and logged so a bad guess is visible */
   private profiles = new Map<string, PadProfile>()
+  /** friendly name of whatever answers each port, '' for an empty one */
+  private names = new Array<string>(MAX_PORTS).fill('')
+  /** name per pad id — refresh() runs every frame, the regexes need not */
+  private nameCache = new Map<string, string>()
 
   private onKeyDown = (e: KeyboardEvent) => {
     if (KEY_MAP[e.code] !== undefined) {
@@ -223,6 +335,7 @@ export class WebPadSource implements PadSource {
 
       // the k-th connected gamepad answers port k
       const pad = connected[port]
+      this.names[port] = pad ? this.nameFor(pad) : ''
       if (pad) {
         const profile = this.profileFor(pad)
         pad.buttons.forEach((b, i) => {
@@ -258,9 +371,26 @@ export class WebPadSource implements PadSource {
     this.profiles.set(key, profile)
     console.info(
       `[ps2-mario] pad ${pad.index} "${pad.id}" (mapping "${pad.mapping || 'none'}")` +
-        ` -> ${profile.name} buttons. Wrong? try ?pad=retro, ?pad=8bitdo or ?pad=standard`,
+        ` -> ${this.nameFor(pad)}, ${profile.name} buttons.` +
+        ` Wrong? try ?pad=retro, ?pad=8bitdo or ?pad=standard`,
     )
     return profile
+  }
+
+  private nameFor(pad: Gamepad) {
+    const known = this.nameCache.get(pad.id)
+    if (known !== undefined) return known
+    const name = friendlyName(pad)
+    this.nameCache.set(pad.id, name)
+    return name
+  }
+
+  /**
+   * What to call the pad on a port, for the ASSIGN PADS menu. Empty when
+   * nothing is plugged in there, and the menu falls back to the port number.
+   */
+  portName(port: number) {
+    return this.names[port] ?? ''
   }
 
   // per-port queries, used by the port-aware Pads overlay in ps2-scene.ts

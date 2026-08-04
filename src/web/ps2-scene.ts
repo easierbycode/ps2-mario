@@ -121,7 +121,9 @@ export default class Ps2Scene extends Phaser.Scene {
     g.Draw = r.Draw
     g.Color = r.Color
     // the base runtime's Pads ignores the port; overlay a port-aware get()
-    // so the game's 2-player pad assignment works with multiple gamepads
+    // so the game's 2-player pad assignment works with multiple gamepads.
+    // getName() is browser-only — a PS2 sees ports, not models — and the
+    // ASSIGN PADS menu falls back to the port number wherever it's missing.
     const pads = this.pads
     g.Pads = {
       ...r.Pads,
@@ -129,6 +131,7 @@ export default class Ps2Scene extends Phaser.Scene {
         pressed: (mask: number) => pads.portHeld(port, mask),
         justPressed: (mask: number) => pads.portFresh(port, mask),
       }),
+      getName: (port = 0) => pads.portName(port),
     }
     g.Image = r.Image
     g.Font = r.Font

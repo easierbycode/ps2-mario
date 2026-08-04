@@ -69,6 +69,13 @@ port 2 — or a gamepad the browser enumerated behind another one — plays the
 game. Two players, or a trip through the title's **ASSIGN PADS** menu, and
 the ports mean what they say again.
 
+A port number is all a PS2 can say about a controller, so ASSIGN PADS reads
+`P1 PAD 1` there. In the browser the rows name the pad instead — DUAL SHOCK
+4, SNES CONTROLLER, STADIA — resolved from the Gamepad id in
+[`src/web/pad-source.ts`](src/web/pad-source.ts) and served to the game as
+`Pads.getName(port)`. Two of the same pad are numbered apart, and a port
+with nothing plugged into it keeps its number.
+
 In the browser, positional mapping only comes free for a pad the browser
 recognises. Everything else — the USB SNES clones especially — reports raw
 HID order instead, which is how such a pad could press START and then do

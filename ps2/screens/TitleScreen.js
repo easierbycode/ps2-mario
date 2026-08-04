@@ -83,6 +83,30 @@ export default class TitleScreen {
     this.font.print((this.screenWidth - w) / 2, y, text);
   }
 
+  /**
+   * How a player's pad reads in the ASSIGN PADS menu. A port number is all a
+   * PS2 can say about a controller; the browser knows the model, so there the
+   * rows name the pad itself — DUAL SHOCK 4, SNES CONTROLLER, STADIA — and
+   * a port with nothing in it falls back to its number.
+   */
+  padLabel(playerIndex) {
+    const port = getPadPort(playerIndex);
+    const name = Inp.padName(port);
+    if (!name) return `PAD ${port + 1}`;
+
+    // Two of the same pad read alike, and the pair of them is exactly what a
+    // 2-player session is plugged into. Number the copies the way a desktop
+    // does: SNES CONTROLLER, SNES CONTROLLER 2.
+    let copies = 0;
+    let copy = 0;
+    for (let p = 0; p < MAX_PORTS; p++) {
+      if (Inp.padName(p) !== name) continue;
+      copies++;
+      if (p === port) copy = copies;
+    }
+    return copies > 1 ? `${name} ${copy}` : name;
+  }
+
   render() {
     // Draw the title image scaled to the full screen
     this.titleImage.draw(0, 0, this.screenWidth, this.screenHeight);
@@ -90,31 +114,28 @@ export default class TitleScreen {
     const menuTop = this.screenHeight - 148;
     const rowH = 32;
 
+    const items = this.mode === 'main'
+      ? MAIN_ITEMS
+      : [`P1 ${this.padLabel(0)}`, `P2 ${this.padLabel(1)}`, 'DONE'];
+    const cursor = this.mode === 'main' ? this.cursor : this.padCursor;
+    const rows = items.map((text, i) => (i === cursor ? '> ' : '  ') + text);
+    const banner = getCharacter() === 'space' ? 'SPACE MODE' : '';
+
     // dark panel so the menu reads over the light title art (alpha is
-    // AthenaEnv's 0-128 range)
-    const panelW = 320;
+    // AthenaEnv's 0-128 range). A pad's name runs longer than "PAD 1" ever
+    // did, so the panel grows to cover whatever the rows turned out to be.
+    const measured = banner ? rows.concat(banner) : rows;
+    const widest = measured.reduce((w, text) => Math.max(w, this.font.getTextSize(text).width), 0);
+    const panelW = Math.min(this.screenWidth, Math.max(320, widest + 32));
     const panelTop = menuTop - rowH - 8;
     Draw.rect((this.screenWidth - panelW) / 2, panelTop, panelW, rowH * 4 + 24, Color.new(0, 0, 0, 96));
 
-    if (this.mode === 'main') {
-      for (let i = 0; i < MAIN_ITEMS.length; i++) {
-        const marker = i === this.cursor ? '> ' : '  ';
-        this.printCentered(menuTop + i * rowH, marker + MAIN_ITEMS[i]);
-      }
-    } else {
-      const rows = [
-        `P1 PAD ${getPadPort(0) + 1}`,
-        `P2 PAD ${getPadPort(1) + 1}`,
-        'DONE',
-      ];
-      for (let i = 0; i < rows.length; i++) {
-        const marker = i === this.padCursor ? '> ' : '  ';
-        this.printCentered(menuTop + i * rowH, marker + rows[i]);
-      }
+    for (let i = 0; i < rows.length; i++) {
+      this.printCentered(menuTop + i * rowH, rows[i]);
     }
 
-    if (getCharacter() === 'space') {
-      this.printCentered(menuTop - rowH, 'SPACE MODE');
+    if (banner) {
+      this.printCentered(menuTop - rowH, banner);
     }
   }
 
