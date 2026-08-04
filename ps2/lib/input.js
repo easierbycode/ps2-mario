@@ -7,11 +7,29 @@
 // the level editor, the second tile-cycle key.
 import { isDebug } from 'lib/debug.js';
 
-/** the PS2's four controller ports */
-export const MAX_PORTS = 4;
+// The PS2 has two controller ports, and AthenaEnv means it: Pads.get(port)
+// throws "wrong port number." for anything past port 1. An uncaught throw
+// ends the app — on hardware and in PCSX2 it drops straight back to the
+// console's dashboard — so asking for a third port is not a no-op, it is the
+// end of the game.
+export const MAX_PORTS = 2;
+
+/** a port that won't answer: reads as a controller with nothing pressed */
+const DEAD_PAD = { pressed: () => false, justPressed: () => false };
+
+// Never let a port take the app down. AthenaEnv throws past port 1, the
+// Switch host clamps, the browser host answers everything; this makes all
+// three behave like an empty port.
+function padAt(port) {
+  try {
+    return Pads.get(port) || DEAD_PAD;
+  } catch (e) {
+    return DEAD_PAD;
+  }
+}
 
 export function poll(port = 0) {
-  const pad = Pads.get(port);
+  const pad = padAt(port);
 
   const pressed  = (btn) => pad.pressed(btn);
   const just     = (btn) => pad.justPressed(btn);
@@ -64,7 +82,7 @@ export function padName(port = 0) {
 }
 
 /**
- * Every port merged into one pad — whichever controller is talking drives it.
+ * Both ports merged into one pad — whichever controller is talking drives it.
  * An empty port reads as all-false, so this is just an OR down the fields.
  *
  * Used wherever a single player shouldn't have to care which port they are
