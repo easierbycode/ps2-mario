@@ -64,6 +64,21 @@ Gamepad mapping, and `BTN_SOUTH`/`BTN_WEST` in
 [`switch/source/host_pads.c`](switch/source/host_pads.c), which has to undo
 devkitPro SDL2's Nintendo labelling.
 
+A solo player is driven by **whichever pad is talking**, so a controller in
+port 2 — or a gamepad the browser enumerated behind another one — plays the
+game. Two players, or a trip through the title's **ASSIGN PADS** menu, and
+the ports mean what they say again.
+
+In the browser, positional mapping only comes free for a pad the browser
+recognises. Everything else — the USB SNES clones especially — reports raw
+HID order instead, which is how such a pad could press START and then do
+nothing in the game. [`src/web/pad-source.ts`](src/web/pad-source.ts)
+profiles those by id (the DragonRise / GreenAsia / PCS clone family,
+8BitDo's D mode) and takes the d-pad from the stick axes or an HID hat. A
+pad nobody has profiled is treated as a SNES clone; `?pad=retro`,
+`?pad=8bitdo` or `?pad=standard` overrides that, and the console prints
+what each pad resolved to.
+
 The title screen's Konami code is unchanged: ↑↑↓↓←→←→ **CIRCLE CROSS**.
 
 The level editor (**DOWN + SELECT** in game) walks its tile list with

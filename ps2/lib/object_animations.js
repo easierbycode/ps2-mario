@@ -90,10 +90,13 @@ export function createBrickSprite() {
 }
 
 export function createMushroomSprite() {
+  // mushroom.png is one 8x8 frame, the same size as a tile and as the
+  // collectible's box. Asking for 16x16 of it drew the sheet's wrap — four
+  // mushrooms in a 2x2 block, at twice the size they collide at.
   return new SpriteSheetAnimation(
     "assets/collectibles/mushroom.png",
     [
-      { x: 0, y: 0, w: 16, h: 16 }
+      { x: 0, y: 0, w: 8, h: 8 }
     ],
     1
   );

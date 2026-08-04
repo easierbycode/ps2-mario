@@ -5,7 +5,7 @@ import { Platform } from "lib/platform.js";
 import { levelEditor_enter, levelEditor_update, levelEditor_render } from "lib/leveleditor.js";
 import { Mario } from "objects/mario.js";
 import * as ObjAnims from "lib/object_animations.js";
-import { getCharacter, getPlayerCount, getPadPort } from "lib/character.js";
+import { getCharacter, getPlayerCount, getPadPort, padsAreAssigned } from "lib/character.js";
 
 export default class GameScreen {
   constructor(screenManager) {
@@ -18,6 +18,15 @@ export default class GameScreen {
   // Player 1 — what the level editor and the legacy hooks expect.
   get player() {
     return this.players[0] || null;
+  }
+
+  // A solo player answers to whichever pad is talking: on the PS2 that
+  // covers a controller in port 2, in the browser a gamepad the host
+  // enumerated behind another one. Two players — or a trip through ASSIGN
+  // PADS — and the ports mean what they say again.
+  pollPad(player) {
+    if (this.players.length === 1 && !padsAreAssigned()) return Inp.pollAll();
+    return Inp.poll(player.padPort);
   }
 
   onEnter() {
@@ -157,7 +166,7 @@ export default class GameScreen {
       return;
     }
 
-    const pad = Inp.poll(player.padPort);
+    const pad = this.pollPad(player);
     if (
       (pad.down && portal.destination.dir === "down") ||
       (pad.right && portal.destination.dir === "right")
@@ -263,8 +272,17 @@ export default class GameScreen {
 
 
   updateCollectibles() {
+    const levelH = this.levelHeight();
+
     this.collectibles.forEach((item) => {
       if (item._collected) return;
+
+      // fell into a pit — a mushroom that walks off a ledge is gone, not
+      // pacing the bottom of the screen waiting to be caught
+      if (item.y > levelH) {
+        item.collected();
+        return;
+      }
 
       if (
         (item.type === "coin" || item.type === "rotatingCoin") &&
@@ -448,6 +466,8 @@ export default class GameScreen {
   }
 
   updateEnemies() {
+    const levelH = this.levelHeight();
+
     this.enemies.forEach(enemy => {
       if (!enemy.alive) return;
 
@@ -462,6 +482,13 @@ export default class GameScreen {
       enemy.vy += this.GRAV * 0.5;
       enemy.x += enemy.vx;
       enemy.y += enemy.vy;
+
+      // out of the world — stop simulating and drawing it
+      if (enemy.y > levelH) {
+        enemy.alive = false;
+        enemy.activated = false;
+        return;
+      }
 
       const bottomY = Math.floor((enemy.y + enemy.h) / this.TILE);
       const midX = Math.floor((enemy.x + enemy.w / 2) / this.TILE);
@@ -674,14 +701,22 @@ export default class GameScreen {
     }
   }
 
-  // A dead player falls out of the world before losing the life; this waits
-  // for that so the death animation plays out.
+  // The floor of the level in world pixels. Nothing below this line is in
+  // the world any more — the collision grid ends here (lib/physics.js).
+  levelHeight() {
+    return (this.fg?.height || this.level?.height || 18) * this.TILE;
+  }
+
+  // Two things end a life: falling into a pit, which kills on the spot, and
+  // an enemy hit, which throws Mario off the top first. Either way the life
+  // is only paid once the body has cleared the screen, so the death jump
+  // plays out.
   checkPlayerDeaths() {
-    const levelH = (this.fg?.height || this.level.height || 18) * this.TILE;
+    const levelH = this.levelHeight();
     for (const p of this.players) {
-      if (!p.out && p.dead && p.y > levelH + 48) {
-        this.handlePlayerDeath(p);
-      }
+      if (p.out) continue;
+      if (!p.dead && p.y > levelH) p.fallInPit();
+      if (p.dead && p.y > levelH + 48) this.handlePlayerDeath(p);
     }
   }
 
@@ -733,7 +768,7 @@ export default class GameScreen {
       return;
     }
 
-    const pads = this.players.map((p) => Inp.poll(p.padPort));
+    const pads = this.players.map((p) => this.pollPad(p));
     const pad = pads[0];
 
     if (this.gameState === "game" && pad.down && pad.select) {
@@ -746,7 +781,7 @@ export default class GameScreen {
     }
 
     if (this.gameState === "leveleditor") {
-        const editorResult = levelEditor_update(this.ts, this.level, this.fgData, (filename, data) => this.saveLevel(filename, data), this.player.padPort);
+        const editorResult = levelEditor_update(this.ts, this.level, this.fgData, (filename, data) => this.saveLevel(filename, data), () => this.pollPad(this.player));
         if (typeof editorResult === 'object' && editorResult.nextState === "load_new_level") {
             this.loadLevel('new_level');
             this.placePlayersAt(editorResult.spawnPos.x, editorResult.spawnPos.y - this.player.h, this.player);

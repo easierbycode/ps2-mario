@@ -7,27 +7,7 @@ import {
 } from 'lib/character.js';
 
 const MAIN_ITEMS = ['1 PLAYER GAME', '2 PLAYER GAME', 'ASSIGN PADS'];
-const MAX_PORTS = 4;
-
-// The menu listens on every port so it works before pads are assigned.
-const EDGE_KEYS = [
-  'jumpPressed', 'runPressed', 'firePressed', 'boostPressed',
-  'start', 'select',
-  'upPressed', 'downPressed', 'leftPressed', 'rightPressed',
-  'crossPressed', 'circlePressed',
-  'tilePrevPressed', 'tileNextPressed',
-];
-const HELD_KEYS = ['left', 'right', 'down', 'up', 'jump', 'run', 'fire', 'boost'];
-
-function pollAllPads() {
-  const merged = Inp.poll(0);
-  for (let port = 1; port < MAX_PORTS; port++) {
-    const pad = Inp.poll(port);
-    for (const key of EDGE_KEYS) merged[key] = merged[key] || pad[key];
-    for (const key of HELD_KEYS) merged[key] = merged[key] || pad[key];
-  }
-  return merged;
-}
+const MAX_PORTS = Inp.MAX_PORTS;
 
 export default class TitleScreen {
   constructor(screenManager) {
@@ -53,7 +33,8 @@ export default class TitleScreen {
   }
 
   update() {
-    const pad = pollAllPads();
+    // the menu listens on every port so it works before pads are assigned
+    const pad = Inp.pollAll();
 
     // Konami code swaps Mario / Luigi for Space Mario / Nabbit (entering it
     // again swaps back). The code ends on CROSS, which is also the menu's
