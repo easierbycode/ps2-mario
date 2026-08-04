@@ -38,6 +38,12 @@ function touchingGround(ent, grid, tile) {
 }
 
 function solid(grid, x, y) {
-  if (y < 0 || y >= grid.h || x < 0 || x >= grid.w) return true; // out-of-bounds solid
+  // The walls and the ceiling are solid, but the floor of the grid is not:
+  // a pit has to drop what falls into it clean out of the level. Treating
+  // every out-of-bounds tile as solid put an invisible floor across the
+  // bottom row, so Mario landed on it and walked on instead of dying, and
+  // a mushroom paced it forever. GameScreen picks up whatever falls past.
+  if (y >= grid.h) return false;
+  if (y < 0 || x < 0 || x >= grid.w) return true; // out-of-bounds solid
   return grid.data[y * grid.w + x] === 1;
 }

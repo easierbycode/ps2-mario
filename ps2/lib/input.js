@@ -7,6 +7,9 @@
 // the level editor, the second tile-cycle key.
 import { isDebug } from 'lib/debug.js';
 
+/** the PS2's four controller ports */
+export const MAX_PORTS = 4;
+
 export function poll(port = 0) {
   const pad = Pads.get(port);
 
@@ -47,4 +50,21 @@ export function poll(port = 0) {
     tilePrevPressed: bPressed,
     tileNextPressed: just(Pads.TRIANGLE),
   };
+}
+
+/**
+ * Every port merged into one pad — whichever controller is talking drives it.
+ * An empty port reads as all-false, so this is just an OR down the fields.
+ *
+ * Used wherever a single player shouldn't have to care which port they are
+ * plugged into: the title menu, and a 1-player game before ASSIGN PADS has
+ * pinned anyone to a port.
+ */
+export function pollAll() {
+  const merged = poll(0);
+  for (let port = 1; port < MAX_PORTS; port++) {
+    const pad = poll(port);
+    for (const key in merged) merged[key] = merged[key] || pad[key];
+  }
+  return merged;
 }

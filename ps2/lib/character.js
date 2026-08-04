@@ -14,6 +14,10 @@ let playerCount = 1;
 // PADS menu points them at separate ports.
 const padPorts = [0, 0];
 
+// Until ASSIGN PADS has been used the ports are a default, not a choice, so
+// a solo player answers to any pad rather than only to port 1.
+let padsAssigned = false;
+
 export function setCharacter(name) {
   current = name;
 }
@@ -32,8 +36,13 @@ export function getPlayerCount() {
 
 export function setPadPort(playerIndex, port) {
   padPorts[playerIndex] = port;
+  padsAssigned = true;
 }
 
 export function getPadPort(playerIndex) {
   return padPorts[playerIndex] ?? 0;
+}
+
+export function padsAreAssigned() {
+  return padsAssigned;
 }

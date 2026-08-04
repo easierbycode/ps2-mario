@@ -109,6 +109,16 @@ export class Mario {
     this.vy = JUMP_V * 0.5;
   }
 
+  // A pit kills outright — big or small, invulnerable or not — and there is
+  // no death jump to play, since by now Mario is under the level and out of
+  // sight. He keeps the fall he arrived with until GameScreen takes the life.
+  fallInPit() {
+    if (this.dead) return;
+    this.dead = true;
+    this.vx = 0;
+    this.animName = "dead";
+  }
+
   makeInvulnerable(frames = 120) {
     this.invulnerable = true;
     this.invulnerableTimer = frames;

@@ -102,9 +102,11 @@ function moveCursor(pad, level) {
 }
 
 /** Returns "leveleditor" to stay, or a state object once START saves. */
-export function levelEditor_update(ts, level, fgData, saveLevel, padPort = 0) {
+export function levelEditor_update(ts, level, fgData, saveLevel, pollPad = () => Inp.poll(0)) {
     const TILE_SIZE = ts.tileWidth;
-    const pad = Inp.poll(padPort);
+    // the caller says which pad drives the editor — the same one that opened
+    // it, which for a solo player is whichever pad is talking
+    const pad = pollPad();
 
     moveCursor(pad, level);
 
